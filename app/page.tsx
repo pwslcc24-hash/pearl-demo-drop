@@ -49,7 +49,7 @@ const initialWins: Win[] = [
   { id:"3", repName:"Maya Rodriguez", company:"Oakview Dentistry", product:"Precheck", songId:"", createdAt:"Yesterday" },
 ];
 
-const songFor = (win:Win, songs:Song[]) => songs.find(s=>s.id===win.songId) ?? songs.find(s=>s.repName.toLowerCase()===win.repName.toLowerCase()) ?? songs[0];
+const songFor = (win:Win, songs:Song[]) => songs.find(s=>s.id===win.songId) ?? songs.find(s=>s.repName.toLowerCase()===win.repName.toLowerCase());
 
 export default function Home() {
   const [wins,setWins]=useState(initialWins);
@@ -69,8 +69,8 @@ export default function Home() {
 
   const currentSong=songFor(active,songs);
 
-  const playSong=useCallback((song?:Song) => {
-    if (!song || !playerRef.current || !armed || typeof playerRef.current.loadVideoById !== "function") return;
+  const playSong=useCallback((song?:Song, forceAudio=false) => {
+    if (!song || !playerRef.current || (!armed&&!forceAudio) || typeof playerRef.current.loadVideoById !== "function") return;
     if (stopRef.current) window.clearTimeout(stopRef.current);
     if (typeof playerRef.current.unMute === "function") playerRef.current.unMute();
     playerRef.current.loadVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+15});
@@ -78,10 +78,10 @@ export default function Home() {
     stopRef.current=window.setTimeout(()=>{if(typeof playerRef.current?.stopVideo==="function")playerRef.current.stopVideo();setPlaying(false);setSeconds(0)},15000);
   },[armed]);
 
-  const launch=useCallback((win:Win, availableSongs=songs)=>{
+  const launch=useCallback((win:Win, availableSongs=songs, forceAudio=false)=>{
     setActive(win); setWins(current=>[win,...current.filter(item=>item.id!==win.id)].slice(0,6));
     setSeconds(15); setCelebrating(true); window.setTimeout(()=>setCelebrating(false),3200);
-    playSong(songFor(win,availableSongs));
+    playSong(songFor(win,availableSongs),forceAudio);
   },[playSong,songs]);
 
   useEffect(()=>{ if(!playing)return; const timer=window.setInterval(()=>setSeconds(v=>Math.max(0,v-1)),1000); return()=>window.clearInterval(timer)},[playing]);
@@ -100,17 +100,19 @@ export default function Home() {
   },[launch]);
 
   useEffect(()=>{
-    if(document.querySelector("script[data-youtube-api]")){ if(window.YT&&currentSong&&!playerRef.current) createPlayer(currentSong); return; }
-    const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";script.async=true;script.dataset.youtubeApi="true";document.body.appendChild(script);
-    window.onYouTubeIframeAPIReady=()=>{if(currentSong)createPlayer(currentSong)};
-    function createPlayer(song:Song){playerRef.current=new window.YT!.Player("youtube-player",{height:"200",width:"200",videoId:song.videoId,playerVars:{playsinline:1,controls:1,start:song.startSeconds,origin:window.location.origin},events:{onReady:()=>{if(typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+15})}}})}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[currentSong?.videoId]);
+    if(!currentSong)return;
+    const createPlayer=()=>{if(!window.YT||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:()=>{if(typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})}}});return true};
+    if(!document.querySelector("script[data-youtube-api]")){const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";script.async=true;script.dataset.youtubeApi="true";document.body.appendChild(script)}
+    window.onYouTubeIframeAPIReady=createPlayer;
+    if(createPlayer())return;
+    const readyCheck=window.setInterval(()=>{if(createPlayer())window.clearInterval(readyCheck)},250);
+    return()=>window.clearInterval(readyCheck);
+  },[currentSong?.videoId,currentSong?.startSeconds]);
 
   const armAudio=()=>{setArmed(true);const song=currentSong??songs[0];if(song&&typeof playerRef.current?.cueVideoById==="function"){playerRef.current.cueVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+15});if(typeof playerRef.current.unMute==="function")playerRef.current.unMute()}};
   const togglePlayback=()=>{if(playing){if(typeof playerRef.current?.pauseVideo==="function")playerRef.current.pauseVideo();setPlaying(false)}else playSong(currentSong)};
 
-  const testDrop=()=>{const song=songs.find(s=>s.id===selectedSong)??songs[0];if(!song){setShowSetup(true);return}const event={id:`${Date.now()}-${Math.random().toString(36).slice(2)}`,repName:song.repName,company:"Pearl Customer",product:"Demo completed",songId:song.id,createdAt:"Just now"};lastServerIdRef.current=event.id;launch(event);fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(event)}).catch(()=>undefined)};
+  const testDrop=()=>{const song=songs.find(s=>s.id===selectedSong)??songs[0];if(!song){setShowSetup(true);return}setArmed(true);const event={id:`${Date.now()}-${Math.random().toString(36).slice(2)}`,repName:song.repName,company:"Pearl Customer",product:"Demo completed",songId:song.id,createdAt:"Just now"};lastServerIdRef.current=event.id;launch(event,songs,true);fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(event)}).catch(()=>undefined)};
 
   const saveSong=async()=>{
     setFormError("");
