@@ -11,9 +11,37 @@ const SDR_NAMES = [
   "Aldo Lopez","Aaron Hill","Audrey Linder","Ava Geertsen","Carson Heber","Cason Clarke",
   "Christian Hawkins","Devin Stika","Dylan Hamilton","Easton Christiansen","Jace Muir",
   "Jeremy Thompson","Josh Cheney","Kana Makuakane","Kenzie Sacks","Kody Davis","Kyla Probst",
-  "Lexee Cheney","Logan Baker","Nick Crawford","Porter Whitworth","Preston Francis",
+  "Lexee Cheney","Logan Baker","Nick Crawford","Payton Clayson","Porter Whitworth","Preston Francis",
   "Shaline Vogler","Spencer Anderson","Trey Falkner",
 ].sort();
+
+const PROFILE_PHOTOS:Record<string,string> = {
+  "Aaron Hill":"https://avatars.slack-edge.com/2026-04-24/10991526944806_f1ea48129e560ba111e6_original.png",
+  "Audrey Linder":"https://avatars.slack-edge.com/2026-03-02/10611268373542_60afd5fdb395219ccc3c_original.png",
+  "Ava Geertsen":"https://avatars.slack-edge.com/2026-06-12/11329761946343_b306ec3fabe2e63110fe_original.png",
+  "Carson Heber":"https://avatars.slack-edge.com/2026-07-09/11556410895250_5460657a874932eb26c0_original.png",
+  "Cason Clarke":"https://avatars.slack-edge.com/2025-11-11/9896468367988_c885256277e71f73ed3d_original.png",
+  "Christian Hawkins":"https://avatars.slack-edge.com/2025-10-08/9659784054486_59d936ebfefdb32bda18_original.png",
+  "Devin Stika":"https://avatars.slack-edge.com/2025-02-25/8533946848096_9b876e0c46fe79e7ea89_original.jpg",
+  "Dylan Hamilton":"https://avatars.slack-edge.com/2026-05-19/11169062394052_2989a70f92d14f5922b4_original.jpg",
+  "Easton Christiansen":"https://avatars.slack-edge.com/2026-05-26/11212537496770_b22931c97cbc19f4b4a6_original.png",
+  "Jace Muir":"https://avatars.slack-edge.com/2026-05-13/11127106550196_480f666377706665948c_original.png",
+  "Jeremy Thompson":"https://avatars.slack-edge.com/2026-06-02/11267949618436_7e67363aa178698cea5d_original.png",
+  "Josh Cheney":"https://avatars.slack-edge.com/2026-05-19/11192449227072_c8d7d74b354a88e4bcff_original.jpg",
+  "Kana Makuakane":"https://avatars.slack-edge.com/2025-10-06/9645779583110_88eed983785efe75755a_original.png",
+  "Kenzie Sacks":"https://avatars.slack-edge.com/2026-05-01/11036147669669_14b2d6ad5dcae19fd43d_original.jpg",
+  "Kody Davis":"https://avatars.slack-edge.com/2025-02-21/8495869155284_a054d7e3f11ebe506c7f_original.png",
+  "Kyla Probst":"https://secure.gravatar.com/avatar/f37d6fdb192187d84ddf71ffd7f43970.jpg?s=512",
+  "Lexee Cheney":"https://avatars.slack-edge.com/2025-08-11/9363249340800_43034a7744e01744a01a_original.png",
+  "Logan Baker":"https://avatars.slack-edge.com/2025-02-10/8434147154612_1523d43f840c387a91b7_original.png",
+  "Nick Crawford":"https://avatars.slack-edge.com/2024-11-26/8091357862804_5546ae25bdf4b2cc6c78_original.png",
+  "Payton Clayson":"https://avatars.slack-edge.com/2025-05-06/8853038916005_9b972db4ec830ff9c353_original.png",
+  "Porter Whitworth":"https://avatars.slack-edge.com/2026-05-12/11112656090757_9ffb64429c45569d7f2c_original.png",
+  "Preston Francis":"https://avatars.slack-edge.com/2024-07-31/7500496532934_ea6a07e6287a0f778deb_original.jpg",
+  "Shaline Vogler":"https://avatars.slack-edge.com/2024-09-05/7684163771459_33535853ccb34541fe16_original.png",
+  "Spencer Anderson":"https://secure.gravatar.com/avatar/e14c51407e4deaccca87fb7012f35c8d.jpg?s=512",
+  "Trey Falkner":"https://avatars.slack-edge.com/2026-03-13/10696428094498_295e8b181babf42de68b_original.png",
+};
 
 const initialWins: Win[] = [
   { id:"1", repName:"Porter Whitworth", company:"Bright Smiles Dental", product:"Pearl Voice", songId:"", createdAt:"10:42 AM" },
@@ -96,13 +124,13 @@ export default function Home() {
     <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className={`audio-arm ${armed?"armed":""}`} onClick={armAudio}>{armed?"✓ AUDIO READY":"ENABLE AUDIO"}</button><button className="icon-button" onClick={()=>setShowSetup(true)}>SET UP SONGS</button></div></nav>
     <section className="stage"><div className="ambient orb-one"/><div className="ambient orb-two"/><div className="grid-lines"/>{celebrating&&<div className="confetti" aria-hidden="true">{Array.from({length:24}).map((_,i)=><i key={i}/>)}</div>}
       <div className="eyebrow"><span>01</span> DEMO COMPLETED</div>
-      <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p><h1>{active.repName}</h1><p className="account-line">{active.company} <span>•</span> {active.product}</p></div><div className="score-orbit"><div className="score-ring"><span>+</span>1<small>DEMO</small></div></div></div>
+      <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p><div className="rep-hero">{PROFILE_PHOTOS[active.repName]?<img src={PROFILE_PHOTOS[active.repName]} alt=""/>:<span>{active.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<h1>{active.repName}</h1></div><p className="account-line">{active.company} <span>•</span> {active.product}</p></div><div className="score-orbit"><div className="score-ring"><span>+</span>1<small>DEMO</small></div></div></div>
       <div className="player-card">
         <div className={`youtube-shell ${currentSong?"":"empty"}`}><div id="youtube-player"/>{!currentSong&&<button onClick={()=>setShowSetup(true)}><b>＋</b><span>Add a YouTube song</span></button>}</div>
         <div className="track-meta"><div className="track-title-row"><div><strong>{currentSong?.title??"No song selected"}</strong><span>{currentSong?`${currentSong.artist} · ${currentSong.startSeconds}s–${currentSong.startSeconds+15}s`:"Choose a real song and its best 15 seconds"}</span></div><span className="approved">YOUTUBE EMBED</span></div><div className="waveform">{Array.from({length:52}).map((_,i)=><i key={i} className={i/52*100<=progress?"passed":""} style={{height:`${20+((i*17)%64)}%`}}/>)}</div><div className="time-row"><span>0:{String(15-seconds).padStart(2,"0")}</span><button onClick={togglePlayback}>{playing?"PAUSE":"PLAY CLIP"}</button><span>0:15</span></div>{!armed&&<p className="audio-note">Click “Enable audio” once on the TV before the first celebration.</p>}</div>
       </div>
     </section>
-    <section className="control-strip"><div className="song-picker"><span className="strip-label">REP SONG</span><div className="select-wrap"><select value={selectedSong} onChange={e=>setSelectedSong(e.target.value)} aria-label="Choose saved rep song"><option value="">Choose a saved song</option>{songs.map(s=><option value={s.id} key={s.id}>{s.repName} · {s.title}</option>)}</select></div><button className="setup-button" onClick={()=>setShowSetup(true)}>＋ ADD SONG</button><button className="test-button" onClick={testDrop}>TEST MY DROP <span>↗</span></button></div><div className="recent-wins"><span className="strip-label">RECENT WINS</span><div className="win-list">{wins.slice(0,3).map(win=><button key={win.id} onClick={()=>launch(win)} className="win-item"><span className="avatar">{win.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span><span><strong>{win.repName.split(" ")[0]}</strong><small>{win.createdAt}</small></span></button>)}</div></div></section>
+    <section className="control-strip"><div className="song-picker"><span className="strip-label">REP SONG</span><div className="select-wrap"><select value={selectedSong} onChange={e=>setSelectedSong(e.target.value)} aria-label="Choose saved rep song"><option value="">Choose a saved song</option>{songs.map(s=><option value={s.id} key={s.id}>{s.repName} · {s.title}</option>)}</select></div><button className="setup-button" onClick={()=>setShowSetup(true)}>＋ ADD SONG</button><button className="test-button" onClick={testDrop}>TEST MY DROP <span>↗</span></button></div><div className="recent-wins"><span className="strip-label">RECENT WINS</span><div className="win-list">{wins.slice(0,3).map(win=><button key={win.id} onClick={()=>launch(win)} className="win-item">{PROFILE_PHOTOS[win.repName]?<img className="avatar" src={PROFILE_PHOTOS[win.repName]} alt=""/>:<span className="avatar">{win.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<span><strong>{win.repName.split(" ")[0]}</strong><small>{win.createdAt}</small></span></button>)}</div></div></section>
     {showSetup&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSetup(false)}}><section className="song-modal" role="dialog" aria-modal="true" aria-labelledby="song-modal-title"><div className="modal-head"><div><span className="strip-label">REP CELEBRATION</span><h2 id="song-modal-title">Choose the best 15 seconds.</h2></div><button onClick={()=>setShowSetup(false)} aria-label="Close">×</button></div><p>Choose the SDR and paste a YouTube link. We’ll automatically add the song title and artist.</p><label>SDR<select value={form.repName} onChange={e=>setForm({...form,repName:e.target.value})}>{SDR_NAMES.map(name=><option key={name} value={name}>{name}</option>)}</select></label><label>YOUTUBE LINK<input placeholder="https://youtube.com/watch?v=..." value={form.youtubeUrl} onChange={e=>setForm({...form,youtubeUrl:e.target.value})}/></label><label>START TIME IN SECONDS<input type="number" min="0" value={form.startSeconds} onChange={e=>setForm({...form,startSeconds:e.target.value})}/><small>Example: 1:12 into the song = 72 seconds. The site stops automatically 15 seconds later.</small></label>{formError&&<p className="form-error">{formError}</p>}<div className="modal-actions"><button onClick={()=>setShowSetup(false)}>CANCEL</button><button className="test-button" onClick={saveSong}>SAVE 15-SECOND CLIP</button></div></section></div>}
   </main>;
 }
