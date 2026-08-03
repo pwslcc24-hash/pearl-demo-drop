@@ -71,7 +71,7 @@ export async function POST(request: Request) {
       createdAt: String(body.createdAt ?? body.created_at ?? new Date().toISOString()),
     };
     const db = await ready();
-    await db.prepare("INSERT OR REPLACE INTO demo_events (id, rep_name, company, product, song_id, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    await db.prepare("INSERT OR IGNORE INTO demo_events (id, rep_name, company, product, song_id, created_at) VALUES (?, ?, ?, ?, ?, ?)")
       .bind(event.id, event.repName, event.company, event.product, event.songId, event.createdAt).run();
     return json({ ok: true, event }, 201);
   } catch {
