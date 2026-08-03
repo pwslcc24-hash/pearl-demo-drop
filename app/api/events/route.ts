@@ -46,7 +46,7 @@ export async function GET() {
   try {
     const db = await ready();
     const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt
-      FROM demo_events ORDER BY created_at DESC LIMIT 10`).all() as D1Result<DemoEvent>;
+      FROM demo_events ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
     return json({ events: result.results ?? [] });
   } catch {
     return json({ events: [], status: "initializing" });
