@@ -60,6 +60,7 @@ export default function Home() {
   const [celebrating, setCelebrating] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const audioRef = useRef<AudioContext | null>(null);
+  const lastServerIdRef = useRef<string | null>(null);
 
   const launch = useCallback((win: Win) => {
     setActive(win);
@@ -85,14 +86,43 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, [playing]);
 
-  const testDrop = () => launch({
+  useEffect(() => {
+    let mounted = true;
+    const sync = async () => {
+      try {
+        const response = await fetch("/api/events", { cache: "no-store" });
+        const data = await response.json() as { events?: Win[] };
+        if (!mounted || !data.events?.length) return;
+        const normalized = data.events.map((event) => ({
+          ...event,
+          createdAt: event.createdAt === "Just now" ? event.createdAt : new Date(event.createdAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+        }));
+        setWins(normalized);
+        const newest = normalized[0];
+        if (lastServerIdRef.current && lastServerIdRef.current !== newest.id) launch(newest);
+        lastServerIdRef.current = newest.id;
+      } catch {
+        // The display keeps running with its last known state while reconnecting.
+      }
+    };
+    sync();
+    const poller = window.setInterval(sync, 3000);
+    return () => { mounted = false; window.clearInterval(poller); };
+  }, [launch]);
+
+  const testDrop = () => {
+    const event = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     repName: "Porter Whitworth",
     company: "Pearl Customer",
     product: "Demo completed",
     songId: selectedSong,
     createdAt: "Just now",
-  });
+    };
+    lastServerIdRef.current = event.id;
+    launch(event);
+    fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(event) }).catch(() => undefined);
+  };
 
   const song = songs.find((item) => item.id === active.songId) ?? songs[0];
   const progress = ((15 - seconds) / 15) * 100;
