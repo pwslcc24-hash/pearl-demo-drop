@@ -78,23 +78,26 @@ export default function Home() {
 
   const clearFades=useCallback(()=>{fadeRefs.current.forEach(timer=>window.clearTimeout(timer));fadeRefs.current=[]},[]);
 
-  const playSong=useCallback((song?:Song, forceAudio=false) => {
+  const playSong=useCallback((song?:Song) => {
     if (!song || !playerRef.current || typeof playerRef.current.loadVideoById !== "function") return;
     if (stopRef.current) window.clearTimeout(stopRef.current);
     clearFades();
     if(typeof playerRef.current.setVolume==="function")playerRef.current.setVolume(0);
     if (typeof playerRef.current.unMute === "function") playerRef.current.unMute();
     playerRef.current.loadVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+16});
+    // Start the new celebration immediately when a HubSpot completion arrives.
+    // The explicit play call is needed after loadVideoById on some browsers.
+    if (typeof playerRef.current.playVideo === "function") playerRef.current.playVideo();
     for(let step=1;step<=15;step++)fadeRefs.current.push(window.setTimeout(()=>{if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(Math.round(step/15*100))},step*100));
     for(let step=1;step<=45;step++)fadeRefs.current.push(window.setTimeout(()=>{const remaining=1-step/45;if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(Math.max(0,Math.round(100*remaining*remaining)))},10500+step*100));
     setSeconds(15); setPlaying(true);
     stopRef.current=window.setTimeout(()=>{clearFades();if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(0);if(typeof playerRef.current?.stopVideo==="function")playerRef.current.stopVideo();setPlaying(false);setSeconds(0)},15300);
   },[clearFades]);
 
-  const launch=useCallback((win:Win, availableSongs=songs, forceAudio=false)=>{
+  const launch=useCallback((win:Win, availableSongs=songs)=>{
     setActive(win); setWins(current=>[win,...current.filter(item=>item.id!==win.id)].slice(0,6));
     setSeconds(15); setCelebrating(true); window.setTimeout(()=>setCelebrating(false),3200);
-    playSong(songFor(win,availableSongs),forceAudio);
+    playSong(songFor(win,availableSongs));
   },[playSong,songs]);
 
   useEffect(()=>{ if(!playing)return; const timer=window.setInterval(()=>setSeconds(v=>Math.max(0,v-1)),1000); return()=>window.clearInterval(timer)},[playing]);
@@ -114,7 +117,7 @@ export default function Home() {
 
   useEffect(()=>{
     if(!currentSong)return;
-    const createPlayer=()=>{if(!window.YT||typeof window.YT.Player!=="function"||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:()=>{if(typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})}}});return true};
+    const createPlayer=()=>{if(!window.YT||typeof window.YT.Player!=="function"||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{autoplay:1,playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:()=>{if(typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})}}});return true};
     if(!document.querySelector("script[data-youtube-api]")){const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";script.async=true;script.dataset.youtubeApi="true";document.body.appendChild(script)}
     window.onYouTubeIframeAPIReady=createPlayer;
     if(createPlayer())return;
