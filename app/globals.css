@@ -9,7 +9,8 @@ button { cursor:pointer; }
 .app-shell { min-height:100vh; display:grid; grid-template-rows:76px 1fr 126px; overflow:hidden; background:#F1F5F9; }
 .topbar { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:0 42px; background:#F8F9FC; border-bottom:1px solid #DFE4E8; }
 .brand-lockup,.topbar-actions { display:flex; align-items:center; gap:18px; }
-.brand-lockup img { width:58px; height:58px; object-fit:contain; }
+.brand-lockup img { display:none; }
+.brand-lockup:before { content:"pearl"; display:grid; place-items:center; width:58px; height:58px; border:1px solid #DFE4E8; border-radius:50%; background:#fff; color:#32363A; font-family:cursive; font-size:20px; letter-spacing:-.08em; transform:rotate(-10deg); box-shadow:0 4px 12px rgba(50,54,58,.08); }
 .brand-divider { width:1px; height:28px; background:#DFE4E8; }
 .product-name,.strip-label,.eyebrow,.moment-label { font-size:12px; font-weight:700; letter-spacing:.14em; }
 .product-name { color:#545B61; }
