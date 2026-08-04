@@ -134,8 +134,8 @@ export default function Home() {
     setSongs(current=>[data.song!,...current.filter(s=>s.id!==data.song!.id&&s.repName.toLowerCase()!==data.song!.repName.toLowerCase())]);setSelectedSong(data.song.id);setSetupRep(null);setShowSetup(false);
   };
 
-  const runTestDemo=()=>{
-    launch({
+  const runTestDemo=async()=>{
+    const testEvent={
       id:`test-${Date.now()}`,
       repName:"TEST DEMO",
       company:"TEST OFFICE",
@@ -143,7 +143,10 @@ export default function Home() {
       songId:currentSong.id,
       createdAt:new Date().toISOString(),
       aeName:"TEST AE",
-    });
+    };
+    try {
+      await fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(testEvent)});
+    } catch {}
   };
 
   const progress=((15-seconds)/15)*100;

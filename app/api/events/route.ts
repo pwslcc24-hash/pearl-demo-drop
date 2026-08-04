@@ -51,8 +51,8 @@ export async function GET() {
       FROM demo_events WHERE id NOT LIKE 'monthly-count:%' ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
     const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0,0,0,0);
     const month = monthStart.toISOString().slice(0,7);
-    const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? ORDER BY count DESC`).bind(`monthly-count:${month}:%`).all() as D1Result<{repName:string;count:number}>;
-    const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
+    const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? AND id NOT LIKE 'test-%' ORDER BY count DESC`).bind(`monthly-count:${month}:%`).all() as D1Result<{repName:string;count:number}>;
+    const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? AND id NOT LIKE 'test-%' GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
     const events = (result.results ?? []).map(event =>
       event.id === "63436217740" && !event.aeName
         ? { ...event, aeName: "Paul Bills" }
