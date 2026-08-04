@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 type Win = { id:string; repName:string; company:string; product:string; songId:string; createdAt:string };
 type Song = { id:string; repName:string; title:string; artist:string; videoId:string; startSeconds:number };
@@ -131,7 +131,7 @@ export default function Home() {
   const progress=((15-seconds)/15)*100;
   return <main className={`app-shell ${celebrating?"is-celebrating":""}`}>
     <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className={`audio-arm ${armed?"armed":""}`} onClick={armAudio}>{armed?"✓ AUDIO READY":"ENABLE AUDIO"}</button><button className="icon-button" onClick={()=>setShowSetup(true)}>SET UP SONGS</button></div></nav>
-    <section className="stage"><div className="ambient orb-one"/><div className="ambient orb-two"/><div className="grid-lines"/>{celebrating&&<div className="confetti" aria-hidden="true">{Array.from({length:24}).map((_,i)=><i key={i}/>)}</div>}
+    <section className="stage"><div className="ambient orb-one"/><div className="ambient orb-two"/><div className="grid-lines"/>{celebrating&&<div className="confetti" aria-hidden="true">{Array.from({length:90}).map((_,i)=><i key={i} style={{"--x":`${(i*37)%101}%`,"--mid":`${((i*29)%80)-40}px`,"--drift":`${((i*53)%180)-90}px`,"--delay":`${(i%12)*.035}s`,"--duration":`${2.4+(i%9)*.13}s`,"--spin":`${540+(i%8)*135}deg`,"--w":`${5+(i%4)*2}px`,"--h":`${i%5===0?7:12+(i%4)*3}px`} as CSSProperties}/>)}</div>}
       <div className="eyebrow"><span>01</span> DEMO COMPLETED</div>
       <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p><div className="rep-hero">{PROFILE_PHOTOS[active.repName]?<img src={PROFILE_PHOTOS[active.repName]} alt=""/>:<span>{active.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<h1>{active.repName}</h1></div><p className="account-line">{active.company} <span>•</span> {active.product}</p></div><div className="score-orbit"><div className="score-ring"><span>+</span>1<small>DEMO</small></div></div></div>
       <div className="player-card">
