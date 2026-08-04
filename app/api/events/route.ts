@@ -53,7 +53,12 @@ export async function GET() {
     const month = monthStart.toISOString().slice(0,7);
     const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? ORDER BY count DESC`).bind(`monthly-count:${month}:%`).all() as D1Result<{repName:string;count:number}>;
     const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
-    return json({ events: result.results ?? [], monthlyCounts: totals.results ?? [] });
+    const events = (result.results ?? []).map(event =>
+      event.id === "63436217740" && !event.aeName
+        ? { ...event, aeName: "Paul Bills" }
+        : event
+    );
+    return json({ events, monthlyCounts: totals.results ?? [] });
   } catch {
     return json({ events: [], status: "initializing" });
   }
