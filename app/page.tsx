@@ -134,10 +134,22 @@ export default function Home() {
     setSongs(current=>[data.song!,...current.filter(s=>s.id!==data.song!.id&&s.repName.toLowerCase()!==data.song!.repName.toLowerCase())]);setSelectedSong(data.song.id);setSetupRep(null);setShowSetup(false);
   };
 
+  const runTestDemo=()=>{
+    launch({
+      id:`test-${Date.now()}`,
+      repName:"TEST DEMO",
+      company:"TEST OFFICE",
+      product:"Demo completed",
+      songId:currentSong.id,
+      createdAt:new Date().toISOString(),
+      aeName:"TEST AE",
+    });
+  };
+
   const progress=((15-seconds)/15)*100;
   const demoCountFor=(name:string)=>monthlyCounts[name]??0;
   return <main className={`app-shell ${celebrating?"is-celebrating":""}`}>
-    <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className="icon-button" onClick={openSetup}>SET UP SONGS</button></div></nav>
+    <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className="icon-button" onClick={runTestDemo}>TEST DEMO</button><button className="icon-button" onClick={openSetup}>SET UP SONGS</button></div></nav>
     <section className="stage"><div className="ambient orb-one"/><div className="ambient orb-two"/><div className="grid-lines"/>{celebrating&&<div className="confetti" aria-hidden="true">{Array.from({length:90}).map((_,i)=><i key={i} style={{"--x":`${(i*37)%101}%`,"--mid":`${((i*29)%80)-40}px`,"--drift":`${((i*53)%180)-90}px`,"--delay":`${(i%12)*.035}s`,"--duration":`${2.4+(i%9)*.13}s`,"--spin":`${540+(i%8)*135}deg`,"--w":`${5+(i%4)*2}px`,"--h":`${i%5===0?7:12+(i%4)*3}px`} as CSSProperties}/>)}</div>}
       <div className="eyebrow"><span>01</span> DEMO COMPLETED {active&&<> · AE: {active.aeName||"Not assigned"}</>}</div>
       <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p>{active?<><div className="rep-hero">{PROFILE_PHOTOS[active.repName]?<img src={PROFILE_PHOTOS[active.repName]} alt=""/>:<span>{active.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<h1>{active.repName}</h1></div><p className="account-line"><b>{active.company}</b> <span>•</span> {active.product} <span>•</span> {formatCompletedAt(active.createdAt)}</p></>:<h1>Waiting for the next win</h1>}</div></div>
