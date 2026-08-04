@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
-type Win = { id:string; repName:string; company:string; product:string; songId:string; createdAt:string };
+type Win = { id:string; repName:string; company:string; product:string; songId:string; createdAt:string; aeName?:string };
 type Song = { id:string; repName:string; title:string; artist:string; videoId:string; startSeconds:number };
 type YTPlayer = { loadVideoById(options:{videoId:string;startSeconds:number;endSeconds:number}):void; cueVideoById(options:{videoId:string;startSeconds:number;endSeconds:number}):void; playVideo():void; pauseVideo():void; stopVideo():void; setVolume(volume:number):void; mute():void; unMute():void };
 declare global { interface Window { YT?: { Player:new(id:string, options:Record<string,unknown>)=>YTPlayer }; onYouTubeIframeAPIReady?:()=>void } }
@@ -46,23 +46,20 @@ const PROFILE_PHOTOS:Record<string,string> = {
   "Trey Falkner":"https://avatars.slack-edge.com/2026-03-13/10696428094498_295e8b181babf42de68b_original.png",
 };
 
-const initialWins: Win[] = [
-  { id:"1", repName:"Porter Whitworth", company:"Bright Smiles Dental", product:"Pearl Voice", songId:"", createdAt:"10:42 AM" },
-  { id:"2", repName:"Casen Cowdrey", company:"Studio Dental", product:"Practice Intelligence", songId:"", createdAt:"9:18 AM" },
-  { id:"3", repName:"Maya Rodriguez", company:"Oakview Dentistry", product:"Precheck", songId:"", createdAt:"Yesterday" },
-];
+const initialWins: Win[] = [];
+const formatCompletedAt=(value:string)=>{if(value==="Just now")return value;const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
 
 const songFor = (win:Win, songs:Song[]) => songs.find(s=>s.id===win.songId) ?? songs.find(s=>s.repName.toLowerCase()===win.repName.toLowerCase()) ?? {...DEFAULT_SONG,repName:win.repName};
 
 export default function Home() {
   const [wins,setWins]=useState(initialWins);
-  const [active,setActive]=useState<Win>(initialWins[0]);
+  const [active,setActive]=useState<Win|null>(null);
   const [songs,setSongs]=useState<Song[]>([]);
   const [selectedSong,setSelectedSong]=useState("");
   const [seconds,setSeconds]=useState(15);
   const [playing,setPlaying]=useState(false);
   const [celebrating,setCelebrating]=useState(false);
-  const [armed,setArmed]=useState(false);
+  const [monthlyCounts,setMonthlyCounts]=useState<Record<string,number>>({});
   const [showSetup,setShowSetup]=useState(false);
   const [setupRep,setSetupRep]=useState<string|null>(null);
   const [form,setForm]=useState({repName:"Porter Whitworth",youtubeUrl:"",startSeconds:"0"});
@@ -72,7 +69,7 @@ export default function Home() {
   const fadeRefs=useRef<number[]>([]);
   const lastServerIdRef=useRef<string|null>(null);
 
-  const currentSong=songFor(active,songs);
+  const currentSong=active?songFor(active,songs):songs[0]??DEFAULT_SONG;
   const setupSong=setupRep?songs.find(s=>s.repName.toLowerCase()===setupRep.toLowerCase()):undefined;
   const setupVideoId=youtubeIdFromInput(form.youtubeUrl);
 
@@ -82,7 +79,7 @@ export default function Home() {
   const clearFades=useCallback(()=>{fadeRefs.current.forEach(timer=>window.clearTimeout(timer));fadeRefs.current=[]},[]);
 
   const playSong=useCallback((song?:Song, forceAudio=false) => {
-    if (!song || !playerRef.current || (!armed&&!forceAudio) || typeof playerRef.current.loadVideoById !== "function") return;
+    if (!song || !playerRef.current || typeof playerRef.current.loadVideoById !== "function") return;
     if (stopRef.current) window.clearTimeout(stopRef.current);
     clearFades();
     if(typeof playerRef.current.setVolume==="function")playerRef.current.setVolume(0);
@@ -92,7 +89,7 @@ export default function Home() {
     for(let step=1;step<=45;step++)fadeRefs.current.push(window.setTimeout(()=>{const remaining=1-step/45;if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(Math.max(0,Math.round(100*remaining*remaining)))},10500+step*100));
     setSeconds(15); setPlaying(true);
     stopRef.current=window.setTimeout(()=>{clearFades();if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(0);if(typeof playerRef.current?.stopVideo==="function")playerRef.current.stopVideo();setPlaying(false);setSeconds(0)},15300);
-  },[armed,clearFades]);
+  },[clearFades]);
 
   const launch=useCallback((win:Win, availableSongs=songs, forceAudio=false)=>{
     setActive(win); setWins(current=>[win,...current.filter(item=>item.id!==win.id)].slice(0,6));
@@ -104,20 +101,20 @@ export default function Home() {
 
   useEffect(()=>{
     const boot=async()=>{
-      try{const res=await fetch("/api/songs",{cache:"no-store"});const data=await res.json() as {songs?:Song[]};const list=data.songs??[];setSongs(list);setSelectedSong(list[0]?.id??"");}
+      try{const res=await fetch("/api/songs",{cache:"no-store"});const data=await res.json() as {songs?:Song[]};const list=data.songs??[];setSongs(list);}
       catch{/* Setup remains available while reconnecting. */}
     }; boot();
   },[]);
 
   useEffect(()=>{
     let mounted=true;
-    const sync=async()=>{try{const res=await fetch("/api/events",{cache:"no-store"});const data=await res.json() as {events?:Win[]};if(!mounted||!data.events?.length)return;const normalized=data.events.map(event=>({...event,createdAt:event.createdAt==="Just now"?event.createdAt:new Date(event.createdAt).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}));setWins(normalized);const newest=normalized[0];if(lastServerIdRef.current&&lastServerIdRef.current!==newest.id)launch(newest);lastServerIdRef.current=newest.id}catch{}};
+    const sync=async()=>{try{const res=await fetch("/api/events",{cache:"no-store"});const data=await res.json() as {events?:Win[];monthlyCounts?:{repName:string;count:number}[]};if(!mounted)return;const normalized=data.events??[];setWins(normalized);setMonthlyCounts(Object.fromEntries((data.monthlyCounts??[]).map(item=>[item.repName,item.count])));const newest=normalized[0];if(newest&&!active)setActive(newest);if(newest&&lastServerIdRef.current&&lastServerIdRef.current!==newest.id)launch(newest);if(newest)lastServerIdRef.current=newest.id}catch{}};
     sync();const poller=window.setInterval(sync,3000);return()=>{mounted=false;window.clearInterval(poller)};
-  },[launch]);
+  },[launch,active]);
 
   useEffect(()=>{
     if(!currentSong)return;
-    const createPlayer=()=>{if(!window.YT||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:()=>{if(typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})}}});return true};
+    const createPlayer=()=>{if(!window.YT||typeof window.YT.Player!=="function"||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:()=>{if(typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})}}});return true};
     if(!document.querySelector("script[data-youtube-api]")){const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";script.async=true;script.dataset.youtubeApi="true";document.body.appendChild(script)}
     window.onYouTubeIframeAPIReady=createPlayer;
     if(createPlayer())return;
@@ -125,10 +122,7 @@ export default function Home() {
     return()=>window.clearInterval(readyCheck);
   },[currentSong?.videoId,currentSong?.startSeconds]);
 
-  const armAudio=()=>{setArmed(true);const song=currentSong??songs[0];if(song&&typeof playerRef.current?.cueVideoById==="function"){playerRef.current.cueVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+15});if(typeof playerRef.current.unMute==="function")playerRef.current.unMute()}};
   const togglePlayback=()=>{if(playing){clearFades();if(stopRef.current)window.clearTimeout(stopRef.current);if(typeof playerRef.current?.pauseVideo==="function")playerRef.current.pauseVideo();setPlaying(false)}else playSong(currentSong)};
-
-  const testDrop=()=>{const song=songs.find(s=>s.id===selectedSong)??songs[0]??{...DEFAULT_SONG,repName:"Porter Whitworth"};setArmed(true);const event={id:`${Date.now()}-${Math.random().toString(36).slice(2)}`,repName:song.repName,company:"Test Demo Office",product:"Demo completed",songId:song.id,createdAt:"Just now"};lastServerIdRef.current=event.id;launch(event,songs,true);fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(event)}).catch(()=>undefined)};
 
   const saveSong=async()=>{
     setFormError("");
@@ -139,16 +133,16 @@ export default function Home() {
 
   const progress=((15-seconds)/15)*100;
   return <main className={`app-shell ${celebrating?"is-celebrating":""}`}>
-    <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className={`audio-arm ${armed?"armed":""}`} onClick={armAudio}>{armed?"✓ AUDIO READY":"ENABLE AUDIO"}</button><button className="icon-button" onClick={openSetup}>SET UP SONGS</button></div></nav>
+    <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className="icon-button" onClick={openSetup}>SET UP SONGS</button></div></nav>
     <section className="stage"><div className="ambient orb-one"/><div className="ambient orb-two"/><div className="grid-lines"/>{celebrating&&<div className="confetti" aria-hidden="true">{Array.from({length:90}).map((_,i)=><i key={i} style={{"--x":`${(i*37)%101}%`,"--mid":`${((i*29)%80)-40}px`,"--drift":`${((i*53)%180)-90}px`,"--delay":`${(i%12)*.035}s`,"--duration":`${2.4+(i%9)*.13}s`,"--spin":`${540+(i%8)*135}deg`,"--w":`${5+(i%4)*2}px`,"--h":`${i%5===0?7:12+(i%4)*3}px`} as CSSProperties}/>)}</div>}
-      <div className="eyebrow"><span>01</span> DEMO COMPLETED</div>
-      <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p><div className="rep-hero">{PROFILE_PHOTOS[active.repName]?<img src={PROFILE_PHOTOS[active.repName]} alt=""/>:<span>{active.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<h1>{active.repName}</h1></div><p className="account-line">{active.company} <span>•</span> {active.product}</p></div><div className="score-orbit"><div className="score-ring"><span>+</span>1<small>DEMO</small></div></div></div>
+      <div className="eyebrow"><span>01</span> DEMO COMPLETED {active&&<> · AE: {active.aeName||"Not assigned"}</>}</div>
+      <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p>{active?<><div className="rep-hero">{PROFILE_PHOTOS[active.repName]?<img src={PROFILE_PHOTOS[active.repName]} alt=""/>:<span>{active.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<h1>{active.repName}</h1></div><p className="account-line"><b>{active.company}</b> <span>•</span> {active.product} <span>•</span> {formatCompletedAt(active.createdAt)}</p></>:<h1>Waiting for the next win</h1>}</div><div className="score-orbit"><div className="score-ring"><span>+</span>1<small>DEMO</small></div></div></div>
       <div className="player-card">
-        <div className={`youtube-shell ${currentSong?"":"empty"}`}><div id="youtube-player"/>{!currentSong&&<button onClick={openSetup}><b>＋</b><span>Add a YouTube song</span></button>}</div>
-        <div className="track-meta"><div className="track-title-row"><div><strong>{currentSong?.title??"No song selected"}</strong><span>{currentSong?`${currentSong.artist} · ${currentSong.startSeconds}s–${currentSong.startSeconds+15}s`:"Choose a real song and its best 15 seconds"}</span></div><span className="approved">YOUTUBE EMBED</span></div><div className="waveform">{Array.from({length:52}).map((_,i)=><i key={i} className={i/52*100<=progress?"passed":""} style={{height:`${20+((i*17)%64)}%`}}/>)}</div><div className="time-row"><span>0:{String(15-seconds).padStart(2,"0")}</span><button onClick={togglePlayback}>{playing?"PAUSE":"PLAY CLIP"}</button><span>0:15</span></div>{!armed&&<p className="audio-note">Click “Enable audio” once on the TV before the first celebration.</p>}</div>
+        <div className="youtube-shell"><div id="youtube-player"/></div>
+        <div className="track-meta"><div className="track-title-row"><div><strong>{currentSong.title}</strong><span>{`${currentSong.artist} · ${currentSong.startSeconds}s–${currentSong.startSeconds+15}s`}</span></div><span className="approved">AUTO CELEBRATION</span></div><div className="waveform">{Array.from({length:52}).map((_,i)=><i key={i} className={i/52*100<=progress?"passed":""} style={{height:`${20+((i*17)%64)}%`}}/>)}</div><div className="time-row"><span>0:{String(15-seconds).padStart(2,"0")}</span><button onClick={togglePlayback}>{playing?"PAUSE":"PLAY CLIP"}</button><span>0:15</span></div></div>
       </div>
     </section>
-    <section className="control-strip"><div className="song-picker"><span className="strip-label">REP SONG</span><div className="select-wrap"><select value={selectedSong} onChange={e=>setSelectedSong(e.target.value)} aria-label="Choose saved rep song"><option value="">Choose a saved song</option>{songs.map(s=><option value={s.id} key={s.id}>{s.repName} · {s.title}</option>)}</select></div><button className="setup-button" onClick={openSetup}>＋ ADD SONG</button><button className="test-button" onClick={testDrop}>TEST MY DROP <span>↗</span></button></div><div className="recent-wins"><span className="strip-label">RECENT WINS</span><div className="win-list">{wins.slice(0,3).map(win=><button key={win.id} onClick={()=>launch(win)} className="win-item">{PROFILE_PHOTOS[win.repName]?<img className="avatar" src={PROFILE_PHOTOS[win.repName]} alt=""/>:<span className="avatar">{win.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<span><strong>{win.repName.split(" ")[0]}</strong><small>{win.createdAt}</small></span></button>)}</div></div></section>
+    <section className="control-strip"><div className="recent-wins"><span className="strip-label">RECENT WINS</span><div className="win-list">{wins.slice(0,5).map(win=><button key={win.id} onClick={()=>launch(win)} className="win-item">{PROFILE_PHOTOS[win.repName]?<img className="avatar" src={PROFILE_PHOTOS[win.repName]} alt=""/>:<span className="avatar">{win.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<span><strong>{win.repName}</strong><small>{monthlyCounts[win.repName]??0} demos this month · {formatCompletedAt(win.createdAt)}</small></span></button>)}</div></div></section>
     {showSetup&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSetup(false)}}><section className="song-modal" role="dialog" aria-modal="true" aria-labelledby="song-modal-title"><div className="modal-head"><div><span className="strip-label">REP CELEBRATION</span><h2 id="song-modal-title">{setupRep?setupRep:"Set up songs"}</h2></div><button onClick={()=>setShowSetup(false)} aria-label="Close">×</button></div>{!setupRep?<><p>Choose an SDR to see or change their song.</p><div className="rep-song-list">{SDR_NAMES.map(name=>{const saved=songs.find(s=>s.repName.toLowerCase()===name.toLowerCase());return <button key={name} onClick={()=>chooseSetupRep(name)}><span className="rep-list-avatar">{PROFILE_PHOTOS[name]?<img src={PROFILE_PHOTOS[name]} alt=""/>:name.split(" ").map(p=>p[0]).slice(0,2).join("")}</span><span><strong>{name}</strong><small>{saved?`${saved.title} · ${saved.artist}`:"Default song"}</small></span><b>CHANGE ›</b></button>})}</div></>:<><button className="back-to-reps" onClick={()=>setSetupRep(null)}>‹ ALL SDRS</button><p>{setupSong?"Their saved song is loaded below. Paste a different URL to change it.":"The default song is loaded below. Paste a different URL to personalize it."}</p><div className="song-url-preview">{setupVideoId&&<img src={`https://i.ytimg.com/vi/${setupVideoId}/hqdefault.jpg`} alt="Selected YouTube song thumbnail"/>}<label>YOUTUBE LINK<input placeholder="https://youtube.com/watch?v=..." value={form.youtubeUrl} onChange={e=>setForm({...form,youtubeUrl:e.target.value})}/></label></div><label>START TIME IN SECONDS<input type="number" min="0" value={form.startSeconds} onChange={e=>setForm({...form,startSeconds:e.target.value})}/><small>Example: 1:12 into the song = 72 seconds. The site stops automatically 15 seconds later.</small></label>{formError&&<p className="form-error">{formError}</p>}<div className="modal-actions"><button onClick={()=>setSetupRep(null)}>BACK</button><button className="test-button" onClick={saveSong}>{setupSong?"SAVE CHANGES":"SAVE PERSONAL SONG"}</button></div></>}</section></div>}
   </main>;
 }

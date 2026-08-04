@@ -8,6 +8,7 @@ type DemoEvent = {
   product: string;
   songId: string;
   createdAt: string;
+  aeName?: string;
 };
 
 const cors = {
@@ -35,6 +36,7 @@ async function ready() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS demo_events_created_at_idx ON demo_events (created_at)"),
   ]);
+  try { await db.prepare("ALTER TABLE demo_events ADD COLUMN ae_name TEXT NOT NULL DEFAULT ''").run(); } catch {}
   return db;
 }
 
@@ -45,9 +47,11 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     const db = await ready();
-    const result = await db.prepare(`SELECT id, rep_name AS repName, CASE WHEN company = 'Pearl Customer' THEN 'Test Demo Office' ELSE company END AS company, product, song_id AS songId, created_at AS createdAt
+    const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt, ae_name AS aeName
       FROM demo_events ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
-    return json({ events: result.results ?? [] });
+    const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0,0,0,0);
+    const totals = await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
+    return json({ events: result.results ?? [], monthlyCounts: totals.results ?? [] });
   } catch {
     return json({ events: [], status: "initializing" });
   }
@@ -69,10 +73,11 @@ export async function POST(request: Request) {
       product,
       songId,
       createdAt: String(body.createdAt ?? body.created_at ?? new Date().toISOString()),
+      aeName: String(body.aeName ?? body.ae_name ?? body.account_executive ?? "").trim(),
     };
     const db = await ready();
-    await db.prepare("INSERT OR IGNORE INTO demo_events (id, rep_name, company, product, song_id, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .bind(event.id, event.repName, event.company, event.product, event.songId, event.createdAt).run();
+    await db.prepare("INSERT OR IGNORE INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(event.id, event.repName, event.company, event.product, event.songId, event.createdAt, event.aeName ?? "").run();
     return json({ ok: true, event }, 201);
   } catch {
     return json({ error: "Invalid demo event" }, 400);
