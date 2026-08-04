@@ -119,7 +119,7 @@ export default function Home() {
   const armAudio=()=>{setArmed(true);const song=currentSong??songs[0];if(song&&typeof playerRef.current?.cueVideoById==="function"){playerRef.current.cueVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+15});if(typeof playerRef.current.unMute==="function")playerRef.current.unMute()}};
   const togglePlayback=()=>{if(playing){clearFades();if(stopRef.current)window.clearTimeout(stopRef.current);if(typeof playerRef.current?.pauseVideo==="function")playerRef.current.pauseVideo();setPlaying(false)}else playSong(currentSong)};
 
-  const testDrop=()=>{const song=songs.find(s=>s.id===selectedSong)??songs[0];if(!song){setShowSetup(true);return}setArmed(true);const event={id:`${Date.now()}-${Math.random().toString(36).slice(2)}`,repName:song.repName,company:"Pearl Customer",product:"Demo completed",songId:song.id,createdAt:"Just now"};lastServerIdRef.current=event.id;launch(event,songs,true);fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(event)}).catch(()=>undefined)};
+  const testDrop=()=>{const song=songs.find(s=>s.id===selectedSong)??songs[0];if(!song){setShowSetup(true);return}setArmed(true);const event={id:`${Date.now()}-${Math.random().toString(36).slice(2)}`,repName:song.repName,company:"Test Demo Office",product:"Demo completed",songId:song.id,createdAt:"Just now"};lastServerIdRef.current=event.id;launch(event,songs,true);fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(event)}).catch(()=>undefined)};
 
   const saveSong=async()=>{
     setFormError("");

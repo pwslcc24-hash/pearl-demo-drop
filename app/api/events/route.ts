@@ -45,7 +45,7 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     const db = await ready();
-    const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt
+    const result = await db.prepare(`SELECT id, rep_name AS repName, CASE WHEN company = 'Pearl Customer' THEN 'Test Demo Office' ELSE company END AS company, product, song_id AS songId, created_at AS createdAt
       FROM demo_events ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
     return json({ events: result.results ?? [] });
   } catch {
