@@ -78,11 +78,11 @@ export default function Home() {
     clearFades();
     if(typeof playerRef.current.setVolume==="function")playerRef.current.setVolume(0);
     if (typeof playerRef.current.unMute === "function") playerRef.current.unMute();
-    playerRef.current.loadVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+15});
+    playerRef.current.loadVideoById({videoId:song.videoId,startSeconds:song.startSeconds,endSeconds:song.startSeconds+16});
     for(let step=1;step<=15;step++)fadeRefs.current.push(window.setTimeout(()=>{if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(Math.round(step/15*100))},step*100));
-    for(let step=1;step<=25;step++)fadeRefs.current.push(window.setTimeout(()=>{if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(Math.max(0,100-Math.round(step/25*100)))},12500+step*100));
+    for(let step=1;step<=45;step++)fadeRefs.current.push(window.setTimeout(()=>{const remaining=1-step/45;if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(Math.max(0,Math.round(100*remaining*remaining)))},10500+step*100));
     setSeconds(15); setPlaying(true);
-    stopRef.current=window.setTimeout(()=>{clearFades();if(typeof playerRef.current?.stopVideo==="function")playerRef.current.stopVideo();setPlaying(false);setSeconds(0)},15000);
+    stopRef.current=window.setTimeout(()=>{clearFades();if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(0);if(typeof playerRef.current?.stopVideo==="function")playerRef.current.stopVideo();setPlaying(false);setSeconds(0)},15300);
   },[armed,clearFades]);
 
   const launch=useCallback((win:Win, availableSongs=songs, forceAudio=false)=>{
