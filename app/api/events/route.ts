@@ -83,7 +83,13 @@ export async function POST(request: Request) {
       product,
       songId,
       createdAt: String(body.createdAt ?? body.created_at ?? new Date().toISOString()),
-      aeName: String(body.aeName ?? body.ae_name ?? body.account_executive ?? "").trim(),
+      // HubSpot commonly exposes the AE as the Deal owner. Accept the
+      // alternate names used by the watcher/webhook as well.
+      aeName: String(
+        body.aeName ?? body.ae_name ?? body.account_executive ??
+        body.dealOwner ?? body.deal_owner ?? body.ownerName ?? body.owner_name ??
+        body.hubspot_owner_name ?? ""
+      ).trim(),
     };
     const db = await ready();
     await db.prepare("INSERT OR IGNORE INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, ?, ?, ?, ?, ?)")
