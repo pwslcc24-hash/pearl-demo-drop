@@ -48,12 +48,6 @@ const PROFILE_PHOTOS:Record<string,string> = {
 
 const initialWins: Win[] = [];
 const formatCompletedAt=(value:string)=>{if(value==="Just now")return value;const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
-const AUGUST_DASHBOARD_COUNTS:Record<string,number>={
-  "Aldo Lopez":3,"Jeremy Thompson":1,"Nick Crawford":1,"Lexee Cheney":4,
-  "Kana Makuakane":4,"Audrey Linder":4,"Aaron Hill":3,"Kyla Probst":3,
-  "Kenzie Sacks":2,"Shaline Vogler":2,"Kody Davis":1,"Porter Whitworth":1,
-};
-const AUGUST_EVENT_OFFSETS:Record<string,number>={"Lexee Cheney":1};
 
 const songFor = (win:Win, songs:Song[]) => songs.find(s=>s.id===win.songId) ?? songs.find(s=>s.repName.toLowerCase()===win.repName.toLowerCase()) ?? {...DEFAULT_SONG,repName:win.repName};
 
@@ -138,11 +132,7 @@ export default function Home() {
   };
 
   const progress=((15-seconds)/15)*100;
-  const demoCountFor=(name:string)=>{
-    const now=new Date();const live=monthlyCounts[name]??0;
-    if(now.getFullYear()===2026&&now.getMonth()===7)return (AUGUST_DASHBOARD_COUNTS[name]??0)+Math.max(0,live-(AUGUST_EVENT_OFFSETS[name]??0));
-    return live;
-  };
+  const demoCountFor=(name:string)=>monthlyCounts[name]??0;
   return <main className={`app-shell ${celebrating?"is-celebrating":""}`}>
     <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className="icon-button" onClick={openSetup}>SET UP SONGS</button></div></nav>
     <section className="stage"><div className="ambient orb-one"/><div className="ambient orb-two"/><div className="grid-lines"/>{celebrating&&<div className="confetti" aria-hidden="true">{Array.from({length:90}).map((_,i)=><i key={i} style={{"--x":`${(i*37)%101}%`,"--mid":`${((i*29)%80)-40}px`,"--drift":`${((i*53)%180)-90}px`,"--delay":`${(i%12)*.035}s`,"--duration":`${2.4+(i%9)*.13}s`,"--spin":`${540+(i%8)*135}deg`,"--w":`${5+(i%4)*2}px`,"--h":`${i%5===0?7:12+(i%4)*3}px`} as CSSProperties}/>)}</div>}
