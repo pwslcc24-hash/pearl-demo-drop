@@ -35,13 +35,6 @@ async function ready() {
       created_at TEXT NOT NULL
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS demo_events_created_at_idx ON demo_events (created_at)"),
-    db.prepare(`CREATE TABLE IF NOT EXISTS monthly_demo_counts (
-      month TEXT NOT NULL,
-      rep_name TEXT NOT NULL,
-      demo_count INTEGER NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (month, rep_name)
-    )`),
   ]);
   try { await db.prepare("ALTER TABLE demo_events ADD COLUMN ae_name TEXT NOT NULL DEFAULT ''").run(); } catch {}
   return db;
@@ -55,10 +48,10 @@ export async function GET() {
   try {
     const db = await ready();
     const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt, ae_name AS aeName
-      FROM demo_events ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
+      FROM demo_events WHERE id NOT LIKE 'monthly-count:%' ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
     const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0,0,0,0);
     const month = monthStart.toISOString().slice(0,7);
-    const liveTotals = await db.prepare(`SELECT rep_name AS repName, demo_count AS count FROM monthly_demo_counts WHERE month = ? ORDER BY demo_count DESC`).bind(month).all() as D1Result<{repName:string;count:number}>;
+    const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? ORDER BY count DESC`).bind(`monthly-count:${month}:%`).all() as D1Result<{repName:string;count:number}>;
     const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
     return json({ events: result.results ?? [], monthlyCounts: totals.results ?? [] });
   } catch {
@@ -73,8 +66,8 @@ export async function POST(request: Request) {
       const month = String(body.month ?? new Date().toISOString().slice(0,7));
       const rows = body.monthlyCounts.slice(0,100).map(item=>item as Record<string,unknown>).filter(item=>String(item.repName??"").trim());
       const db = await ready();
-      await db.prepare("DELETE FROM monthly_demo_counts WHERE month = ?").bind(month).run();
-      if(rows.length) await db.batch(rows.map(item=>db.prepare("INSERT INTO monthly_demo_counts (month, rep_name, demo_count, updated_at) VALUES (?, ?, ?, ?)").bind(month,String(item.repName).trim(),Math.max(0,Number(item.count)||0),new Date().toISOString())));
+      await db.prepare("DELETE FROM demo_events WHERE id LIKE ?").bind(`monthly-count:${month}:%`).run();
+      if(rows.length) await db.batch(rows.map(item=>{const rep=String(item.repName).trim();return db.prepare("INSERT INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, '', ?, '', ?, '')").bind(`monthly-count:${month}:${rep}`,rep,`MONTHLY_COUNT:${Math.max(0,Number(item.count)||0)}`,new Date().toISOString())}));
       return json({ok:true,month,count:rows.length});
     }
     const repName = String(body.repName ?? body.rep_name ?? body.owner_name ?? "").trim();
