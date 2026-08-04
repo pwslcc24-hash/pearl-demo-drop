@@ -94,6 +94,12 @@ export async function POST(request: Request) {
     const db = await ready();
     await db.prepare("INSERT OR IGNORE INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .bind(event.id, event.repName, event.company, event.product, event.songId, event.createdAt, event.aeName ?? "").run();
+    // Allow the live watcher to fill in the Deal owner after an event was
+    // initially created without an AE.
+    if (event.aeName) {
+      await db.prepare("UPDATE demo_events SET ae_name = ? WHERE id = ? AND (ae_name IS NULL OR ae_name = '')")
+        .bind(event.aeName, event.id).run();
+    }
     return json({ ok: true, event }, 201);
   } catch {
     return json({ error: "Invalid demo event" }, 400);
