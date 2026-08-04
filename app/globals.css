@@ -9,7 +9,7 @@ button { cursor:pointer; }
 .app-shell { min-height:100vh; display:grid; grid-template-rows:76px 1fr 126px; overflow:hidden; background:#F1F5F9; }
 .topbar { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:0 42px; background:#F8F9FC; border-bottom:1px solid #DFE4E8; }
 .brand-lockup,.topbar-actions { display:flex; align-items:center; gap:18px; }
-.brand-lockup img { width:58px; height:58px; object-fit:contain; }
+.brand-lockup img { width:60px; height:60px; padding:0; object-fit:contain; content:url("https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg?v=2"); }
 .brand-lockup:before { display:none; }
 .brand-divider { width:1px; height:28px; background:#DFE4E8; }
 .product-name,.strip-label,.eyebrow,.moment-label { font-size:12px; font-weight:700; letter-spacing:.14em; }
