@@ -11,17 +11,18 @@ const DEFAULT_SONG:Song={id:"default-demo-drop",repName:"",title:"Default Demo D
 const youtubeIdFromInput=(value:string)=>{try{const url=new URL(value);if(url.hostname.includes("youtu.be"))return url.pathname.slice(1).split("/")[0];return url.searchParams.get("v")??url.pathname.match(/\/(?:embed|shorts)\/([^/?]+)/)?.[1]??""}catch{return /^[\w-]{11}$/.test(value)?value:""}};
 
 const SDR_NAMES = [
-  "Aldo Lopez","Aaron Hill","Audrey Linder","Ava Geertsen","Carson Heber","Cason Clarke",
-  "Christian Hawkins","Devin Stika","Dylan Hamilton","Easton Christiansen","Jace Muir",
-  "Jeremy Thompson","Josh Cheney","Kana Makuakane","Kenzie Sacks","Kody Davis","Kyla Probst",
+  "Aldo Lopez","Aaron Hill","Audrey Linder","Ava Geertsen","Ben PoVey","Carson Heber","Cason Clarke",
+  "Christian Hawkins","Devin Stika","Dylan Hamilton","Easton Christiansen","Jace Muir","Jack Gardner",
+  "Jeremy Thompson","Josh Cheney","Kaden Backlund","Kana Makuakane","Kenzie Sacks","Kody Davis","Kyla Probst",
   "Lexee Cheney","Logan Baker","Nick Crawford","Payton Clayson","Porter Whitworth","Preston Francis",
-  "Shaline Vogler","Spencer Anderson","Trey Falkner",
+  "Shaline Vogler","Spencer Anderson","Spencer Gowan","Trey Falkner","Ty Armstrong",
 ].sort();
 
 const PROFILE_PHOTOS:Record<string,string> = {
   "Aaron Hill":"https://avatars.slack-edge.com/2026-04-24/10991526944806_f1ea48129e560ba111e6_original.png",
   "Audrey Linder":"https://avatars.slack-edge.com/2026-03-02/10611268373542_60afd5fdb395219ccc3c_original.png",
   "Ava Geertsen":"https://avatars.slack-edge.com/2026-06-12/11329761946343_b306ec3fabe2e63110fe_original.png",
+  "Ben PoVey":"https://avatars.slack-edge.com/2026-05-19/11162577720598_e496ecab6537e35e045e_original.jpg",
   "Carson Heber":"https://avatars.slack-edge.com/2026-07-09/11556410895250_5460657a874932eb26c0_original.png",
   "Cason Clarke":"https://avatars.slack-edge.com/2025-11-11/9896468367988_c885256277e71f73ed3d_original.png",
   "Christian Hawkins":"https://avatars.slack-edge.com/2025-10-08/9659784054486_59d936ebfefdb32bda18_original.png",
@@ -29,8 +30,10 @@ const PROFILE_PHOTOS:Record<string,string> = {
   "Dylan Hamilton":"https://avatars.slack-edge.com/2026-05-19/11169062394052_2989a70f92d14f5922b4_original.jpg",
   "Easton Christiansen":"https://avatars.slack-edge.com/2026-05-26/11212537496770_b22931c97cbc19f4b4a6_original.png",
   "Jace Muir":"https://avatars.slack-edge.com/2026-05-13/11127106550196_480f666377706665948c_original.png",
+  "Jack Gardner":"https://secure.gravatar.com/avatar/cf133158570f5beaceae0d856ee48c24.jpg?s=512",
   "Jeremy Thompson":"https://avatars.slack-edge.com/2026-06-02/11267949618436_7e67363aa178698cea5d_original.png",
   "Josh Cheney":"https://avatars.slack-edge.com/2026-05-19/11192449227072_c8d7d74b354a88e4bcff_original.jpg",
+  "Kaden Backlund":"https://secure.gravatar.com/avatar/db7cee5c2cfc3fa97b5d3bc2193c5118.jpg?s=512",
   "Kana Makuakane":"https://avatars.slack-edge.com/2025-10-06/9645779583110_88eed983785efe75755a_original.png",
   "Kenzie Sacks":"https://avatars.slack-edge.com/2026-05-01/11036147669669_14b2d6ad5dcae19fd43d_original.jpg",
   "Kody Davis":"https://avatars.slack-edge.com/2025-02-21/8495869155284_a054d7e3f11ebe506c7f_original.png",
@@ -43,7 +46,9 @@ const PROFILE_PHOTOS:Record<string,string> = {
   "Preston Francis":"https://avatars.slack-edge.com/2024-07-31/7500496532934_ea6a07e6287a0f778deb_original.jpg",
   "Shaline Vogler":"https://avatars.slack-edge.com/2024-09-05/7684163771459_33535853ccb34541fe16_original.png",
   "Spencer Anderson":"https://secure.gravatar.com/avatar/e14c51407e4deaccca87fb7012f35c8d.jpg?s=512",
+  "Spencer Gowan":"https://avatars.slack-edge.com/2026-02-03/10446198740337_3dc774a9637b5df37708_original.jpg",
   "Trey Falkner":"https://avatars.slack-edge.com/2026-03-13/10696428094498_295e8b181babf42de68b_original.png",
+  "Ty Armstrong":"https://avatars.slack-edge.com/2025-07-29/9287649416449_bf95eec2ec3ad04895a3_original.png",
 };
 
 const initialWins: Win[] = [];
