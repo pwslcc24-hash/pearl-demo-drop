@@ -55,9 +55,9 @@ const initialWins: Win[] = [];
 const formatCompletedAt=(value:string)=>{if(value==="Just now")return value;const raw=String(value);const date=/^\d{10,13}$/.test(raw)?new Date(Number(raw.length===10?`${raw}000`:raw)):new Date(raw);return Number.isNaN(date.getTime())?"Recently":date.toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
 
 const normalizeRepName=(value:string)=>String(value??"").trim().replace(/\s+/g," ").toLowerCase();
-// The SDR's saved song is authoritative. HubSpot events may contain an empty,
-// stale, or default song id, so match the rep before considering the event id.
-const songFor = (win:Win, songs:Song[]) => songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(win.repName)) ?? songs.find(s=>s.id===win.songId) ?? {...DEFAULT_SONG,repName:win.repName};
+// The SDR's saved song is authoritative. Never borrow a song from another rep
+// when a HubSpot event contains an empty, stale, or default song id.
+const songFor = (win:Win, songs:Song[]) => songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(win.repName)) ?? {...DEFAULT_SONG,repName:win.repName};
 
 export default function Home() {
   const [wins,setWins]=useState(initialWins);
@@ -127,13 +127,15 @@ export default function Home() {
 
   useEffect(()=>{
     if(!currentSong)return;
-    const createPlayer=()=>{if(!window.YT||typeof window.YT.Player!=="function"||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{autoplay:1,playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:()=>{if(typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})}}});return true};
+    const cueCurrentSong=()=>{if(!playing&&typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})};
+    if(playerRef.current){cueCurrentSong();return}
+    const createPlayer=()=>{if(!window.YT||typeof window.YT.Player!=="function"||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{autoplay:1,playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:cueCurrentSong}});return true};
     if(!document.querySelector("script[data-youtube-api]")){const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";script.async=true;script.dataset.youtubeApi="true";document.body.appendChild(script)}
     window.onYouTubeIframeAPIReady=createPlayer;
     if(createPlayer())return;
     const readyCheck=window.setInterval(()=>{if(createPlayer())window.clearInterval(readyCheck)},250);
     return()=>window.clearInterval(readyCheck);
-  },[currentSong?.videoId,currentSong?.startSeconds]);
+  },[currentSong?.videoId,currentSong?.startSeconds,playing]);
 
   const togglePlayback=()=>{if(playing){clearFades();if(stopRef.current)window.clearTimeout(stopRef.current);if(typeof playerRef.current?.pauseVideo==="function")playerRef.current.pauseVideo();setPlaying(false)}else playSong(currentSong)};
 
