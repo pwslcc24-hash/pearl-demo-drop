@@ -159,7 +159,7 @@ export default function Home() {
       <div className="eyebrow"><span>01</span> DEMO COMPLETED {active&&<> · AE: {active.aeName||"Not assigned"}</>}</div>
       <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p>{active?<><div className="rep-hero">{PROFILE_PHOTOS[active.repName]?<img src={PROFILE_PHOTOS[active.repName]} alt=""/>:<span>{active.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<h1>{active.repName}</h1></div><p className="account-line"><b>{active.company}</b> <span>•</span> {active.product} <span>•</span> {formatCompletedAt(active.createdAt)}</p></>:<h1>Waiting for the next win</h1>}</div></div>
       <div className="player-card">
-        <div className="youtube-shell"><div id="youtube-player"/></div>
+        <div className="youtube-shell"><img src={`https://i.ytimg.com/vi/${currentSong.videoId}/hqdefault.jpg`} alt={`${currentSong.title} artwork`}/><div className="audio-player" aria-hidden="true"><div id="youtube-player"/></div></div>
         <div className="track-meta"><div className="track-title-row"><div><strong>{currentSong.title}</strong><span>{`${currentSong.artist} · ${currentSong.startSeconds}s–${currentSong.startSeconds+15}s`}</span></div><span className="approved">AUTO CELEBRATION</span></div><div className="waveform">{Array.from({length:52}).map((_,i)=><i key={i} className={i/52*100<=progress?"passed":""} style={{height:`${20+((i*17)%64)}%`}}/>)}</div><div className="time-row"><span>0:{String(15-seconds).padStart(2,"0")}</span><button onClick={togglePlayback}>{playing?"PAUSE":"PLAY CLIP"}</button><span>0:15</span></div></div>
       </div>
     </section>
