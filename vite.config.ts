@@ -10,6 +10,9 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const LIVE_SITE_ORIGIN =
+  process.env.PEARL_DEMO_DROP_LIVE_ORIGIN ??
+  "https://pearl-demo-drop.pwhitworth5.chatgpt.site";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
@@ -50,6 +53,16 @@ export default defineConfig(async () => {
       ...(isCodexSeatbeltSandbox
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
+      proxy: {
+        "/api": {
+          target: LIVE_SITE_ORIGIN,
+          changeOrigin: true,
+          secure: true,
+          bypass(req) {
+            if (req.method && req.method !== "GET") return req.url;
+          },
+        },
+      },
     },
     plugins: [
       vinext(),
