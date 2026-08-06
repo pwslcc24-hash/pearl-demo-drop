@@ -146,9 +146,14 @@ export default function Home() {
     setSongs(current=>{const updated=[data.song!,...current.filter(s=>s.id!==data.song!.id&&normalizeRepName(s.repName)!==normalizeRepName(data.song!.repName))];songsRef.current=updated;return updated});setSelectedSong(data.song.id);setSetupRep(null);setShowSetup(false);
   };
 
-  const rerunMostRecentWin=()=>{
-    const mostRecent=wins[0]??active;
-    if(mostRecent)launch(mostRecent,songsRef.current);
+  const rerunMostRecentWin=async()=>{
+    try{
+      const response=await fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"replay-most-recent"})});
+      const data=await response.json() as {event?:Win};
+      if(!response.ok||!data.event)return;
+      lastServerIdRef.current=data.event.id;
+      launch(data.event,songsRef.current);
+    }catch{/* The live feed will stay unchanged if the replay request fails. */}
   };
 
   const progress=((15-seconds)/15)*100;

@@ -51,8 +51,8 @@ export async function GET() {
       FROM demo_events WHERE id NOT LIKE 'monthly-count:%' ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
     const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0,0,0,0);
     const month = monthStart.toISOString().slice(0,7);
-    const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? AND id NOT LIKE 'test-%' ORDER BY count DESC`).bind(`monthly-count:${month}:%`).all() as D1Result<{repName:string;count:number}>;
-    const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? AND id NOT LIKE 'test-%' GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
+    const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' ORDER BY count DESC`).bind(`monthly-count:${month}:%`).all() as D1Result<{repName:string;count:number}>;
+    const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
     const events = (result.results ?? []).map(event =>
       event.id === "63436217740" && !event.aeName
         ? { ...event, aeName: "Paul Bills" }
@@ -67,6 +67,16 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json() as Record<string, unknown>;
+    if (body.action === "replay-most-recent") {
+      const db = await ready();
+      const result = await db.prepare(`SELECT rep_name AS repName, company, product, song_id AS songId, ae_name AS aeName
+        FROM demo_events WHERE id NOT LIKE 'monthly-count:%' ORDER BY rowid DESC LIMIT 1`).first() as Omit<DemoEvent,"id"|"createdAt"> | null;
+      if (!result) return json({ error: "There is no completed demo to replay yet" }, 404);
+      const event: DemoEvent = {...result,id:`replay-${Date.now()}-${Math.random().toString(36).slice(2)}`,createdAt:new Date().toISOString()};
+      await db.prepare("INSERT INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(event.id,event.repName,event.company,event.product,event.songId,event.createdAt,event.aeName??"").run();
+      return json({ok:true,event},201);
+    }
     if (Array.isArray(body.monthlyCounts)) {
       const month = String(body.month ?? new Date().toISOString().slice(0,7));
       const rows = body.monthlyCounts.slice(0,100).map(item=>item as Record<string,unknown>).filter(item=>String(item.repName??"").trim());
