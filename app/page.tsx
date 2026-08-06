@@ -85,6 +85,30 @@ const AE_PHOTOS:Record<string,string> = {
   "Chad":"https://avatars.slack-edge.com/2026-07-10/11558424787333_475a8b9e9d133f5aa509_original.jpg",
   "Justin Jolley":"https://avatars.slack-edge.com/2026-03-02/10626318739505_0a2fc6b8ad8ef5f2154a_original.jpg",
   "Justin Kolley":"https://avatars.slack-edge.com/2026-03-02/10626318739505_0a2fc6b8ad8ef5f2154a_original.jpg",
+  "Brody Wright":"https://avatars.slack-edge.com/2026-05-29/11239589793253_a56b1a48e4c35e95a786_original.png",
+  "Brody Weight":"https://avatars.slack-edge.com/2026-05-29/11239589793253_a56b1a48e4c35e95a786_original.png",
+  "Brody":"https://avatars.slack-edge.com/2026-05-29/11239589793253_a56b1a48e4c35e95a786_original.png",
+  "Brock Mearian":"https://avatars.slack-edge.com/2025-11-25/9979736146679_26b0b4616e247bc02d3a_original.jpg",
+  "Ethan Sherman":"https://avatars.slack-edge.com/2026-05-20/11174283332101_835b7fd1db6ae33afbb9_original.png",
+  "Hayden Love":"https://avatars.slack-edge.com/2026-07-20/11625790752499_54cb8ec7f9ae1bc7e838_original.jpg",
+  "Ike Rutter":"https://secure.gravatar.com/avatar/0da1a4498669ba322ffab8eabb6c6082.jpg?s=512&d=https%3A%2F%2Fa.slack-edge.com%2Fdf10d%2Fimg%2Favatars%2Fava_0008-512.png",
+  "Isaac Jackman":"https://avatars.slack-edge.com/2024-10-28/7940789665542_853473b307d2e2d407d5_original.png",
+  "Jackson O'Hara":"https://avatars.slack-edge.com/2025-11-27/10005734236853_799c207b8b340837efa1_original.png",
+  "Kaylee Bott":"https://avatars.slack-edge.com/2023-11-08/6190466326672_5a180fedcdff8c88c199_original.png",
+  "Kayne Bosma":"https://avatars.slack-edge.com/2025-12-01/10056136369216_dee10db94010601ae4dd_original.png",
+  "Kobe Dixon":"https://avatars.slack-edge.com/2025-10-28/9784502886787_79632bafc4b9f50a2c5a_original.png",
+  "Lindsey Simser":"https://avatars.slack-edge.com/2026-03-18/10757709788544_9d133afefd66214c6ca0_original.jpg",
+  "Marcus Smith":"https://avatars.slack-edge.com/2026-06-03/11277917272324_6c4b4ee152bda108a586_original.jpg",
+  "Marcus Jr.":"https://avatars.slack-edge.com/2026-06-03/11277917272324_6c4b4ee152bda108a586_original.jpg",
+  "MJ":"https://avatars.slack-edge.com/2026-06-03/11277917272324_6c4b4ee152bda108a586_original.jpg",
+  "Matthew Larsen":"https://avatars.slack-edge.com/2026-06-04/11278268861123_47e1c4617c40350c7299_original.png",
+  "Matt Larsen":"https://avatars.slack-edge.com/2026-06-04/11278268861123_47e1c4617c40350c7299_original.png",
+  "Payton Anderson":"https://avatars.slack-edge.com/2026-04-13/10931232556864_b684105ea0c4f2c06b41_original.png",
+  "Peyton Anderson":"https://avatars.slack-edge.com/2026-04-13/10931232556864_b684105ea0c4f2c06b41_original.png",
+  "Peyton":"https://avatars.slack-edge.com/2026-04-13/10931232556864_b684105ea0c4f2c06b41_original.png",
+  "Harrison Sanford":"https://avatars.slack-edge.com/2025-11-05/9863531691233_ea688e4cb5a6b3905cfa_original.png",
+  "Sarah Parker":"https://avatars.slack-edge.com/2025-02-17/8464298390915_633292dfec0438d74912_original.jpg",
+  "Seth Wilkins":"https://avatars.slack-edge.com/2026-05-22/11194149067681_3e9aae444143eb607f4e_original.jpg",
 };
 
 const LOCAL_PREVIEW_WIN:Win={
@@ -101,6 +125,8 @@ const DISPLAY_TIMEZONE="America/Denver";
 
 const PROFILE_PHOTOS:Record<string,string> = {
   "Aaron Hill":"https://avatars.slack-edge.com/2026-04-24/10991526944806_f1ea48129e560ba111e6_original.png",
+  "Aldo Lopez":"https://avatars.slack-edge.com/2025-10-15/9703111814726_bb41a84d06b9ef61874b_original.jpg",
+  "Aldo":"https://avatars.slack-edge.com/2025-10-15/9703111814726_bb41a84d06b9ef61874b_original.jpg",
   "Audrey Linder":"https://avatars.slack-edge.com/2026-03-02/10611268373542_60afd5fdb395219ccc3c_original.png",
   "Ava Geertsen":"https://avatars.slack-edge.com/2026-06-12/11329761946343_b306ec3fabe2e63110fe_original.png",
   "Ben PoVey":"https://avatars.slack-edge.com/2026-05-19/11162577720598_e496ecab6537e35e045e_original.jpg",
@@ -289,8 +315,8 @@ export default function Home() {
   const progress=((15-seconds)/15)*100;
   const demoCountFor=(name:string)=>monthlyCounts[name]??0;
   const leaderboard=buildLeaderboard(monthlyCounts);
-  const topThree=leaderboard.filter(entry=>entry.rank<=3).slice(0,3);
-  const leaderboardRest=leaderboard.filter(entry=>entry.rank>3);
+  const topThree=leaderboard.slice(0,3);
+  const leaderboardRest=leaderboard.slice(3,12);
   const monthLabel=new Date().toLocaleString("en-US",{month:"long",year:"numeric",timeZone:DISPLAY_TIMEZONE});
   const showDemoTakeover=celebrating&&active&&!leaderCelebrating;
   const renderFace=(name:string,map:Record<string,string>,className="")=>{const photo=photoFor(name,map);return photo?<img className={className} src={photo} alt=""/>:<span className={className}>{initialsFor(name)}</span>};
@@ -307,7 +333,7 @@ export default function Home() {
     <div key={entry.repName} className={`podium-slot place-${position}${compact?" is-compact":""}`}>{renderFace(entry.repName,PROFILE_PHOTOS,`podium-face place-${position}`)}<div className="podium-copy"><strong>{medalForRank(entry.rank)?<><span className="podium-medal podium-medal-inline" aria-hidden="true">{medalForRank(entry.rank)}</span> {entry.repName}</>:entry.repName}</strong><span>{entry.count} / {entry.quota} completes</span><em>{entry.pct}% to quota</em></div></div>
   );
   const renderPodium=()=>(
-    <div className="podium-stage"><div className="podium">{topThree[0]?<div className="podium-leader"><p className="podium-label">MONTHLY LEADERS · {monthLabel}</p>{renderPodiumSlot(topThree[0],1)}</div>:null}{(topThree[1]||topThree[2])?<div className="podium-runners">{topThree[1]?renderPodiumSlot(topThree[1],2,true):null}{topThree[2]?renderPodiumSlot(topThree[2],3,true):null}</div>:null}{!topThree.length&&<p className="podium-empty">Waiting for monthly counts from HubSpot…</p>}</div></div>
+    <div className="podium-stage"><div className="podium">{topThree.length?<><p className="podium-label">MONTHLY LEADERS · {monthLabel}</p>{topThree[0]?<div className="podium-leader">{renderPodiumSlot(topThree[0],1)}</div>:null}{topThree.slice(1).map((entry,index)=><div key={entry.repName} className={`podium-runner place-${index+2}-row`}>{renderPodiumSlot(entry,(index+2) as 2|3,true)}</div>)}</>:<p className="podium-empty">Waiting for monthly counts from HubSpot…</p>}</div></div>
   );
   const renderDemoTakeover=()=>active?(
     <div className="demo-takeover" role="status" aria-live="polite"><div className="demo-takeover-glow" aria-hidden="true"/><div className="demo-takeover-content"><p className="demo-takeover-label">DEMO COMPLETED</p><div className="deal-team"><div className="rep-hero sdr-hero">{renderFace(active.repName,PROFILE_PHOTOS)}<div><small>SDR</small><h1>{active.repName}</h1></div></div>{active.aeName?<div className="rep-hero ae-hero">{renderFace(active.aeName,AE_PHOTOS)}<div><small>AE</small><strong>{active.aeName}</strong></div></div>:null}</div><p className="account-line"><b>{active.company}</b> <span>•</span> {active.product} <span>•</span> {formatCompletedAt(active.createdAt)}</p></div>{renderPlayerCard("demo-takeover-player")}</div>
