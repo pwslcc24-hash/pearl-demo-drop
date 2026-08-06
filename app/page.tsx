@@ -144,25 +144,15 @@ export default function Home() {
     setSongs(current=>{const updated=[data.song!,...current.filter(s=>s.id!==data.song!.id&&normalizeRepName(s.repName)!==normalizeRepName(data.song!.repName))];songsRef.current=updated;return updated});setSelectedSong(data.song.id);setSetupRep(null);setShowSetup(false);
   };
 
-  const runTestDemo=async()=>{
-    const testEvent={
-      id:`test-${Date.now()}`,
-      repName:"TEST DEMO",
-      company:"TEST OFFICE",
-      product:"Demo completed",
-      songId:currentSong.id,
-      createdAt:new Date().toISOString(),
-      aeName:"TEST AE",
-    };
-    try {
-      await fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(testEvent)});
-    } catch {}
+  const rerunMostRecentWin=()=>{
+    const mostRecent=wins[0]??active;
+    if(mostRecent)launch(mostRecent,songsRef.current);
   };
 
   const progress=((15-seconds)/15)*100;
   const demoCountFor=(name:string)=>monthlyCounts[name]??0;
   return <main className={`app-shell ${celebrating?"is-celebrating":""}`}>
-    <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className="icon-button" onClick={runTestDemo}>TEST DEMO</button><button className="icon-button" onClick={openSetup}>SET UP SONGS</button></div></nav>
+    <nav className="topbar"><div className="brand-lockup"><img src="https://unrivaled-taffy-45056.netlify.app/01-logo/pearl-logo-primary-circled.svg" alt="Pearl"/><span className="brand-divider"/><span className="product-name">DEMO DROP</span></div><div className="topbar-actions"><span className="live-pill"><i/> LIVE FROM HUBSPOT</span><button className="icon-button" onClick={rerunMostRecentWin}>RE-RUN MOST RECENT</button><button className="icon-button" onClick={openSetup}>SET UP SONGS</button></div></nav>
     <section className="stage"><div className="ambient orb-one"/><div className="ambient orb-two"/><div className="grid-lines"/>{celebrating&&<div className="confetti" aria-hidden="true">{Array.from({length:90}).map((_,i)=><i key={i} style={{"--x":`${(i*37)%101}%`,"--mid":`${((i*29)%80)-40}px`,"--drift":`${((i*53)%180)-90}px`,"--delay":`${(i%12)*.035}s`,"--duration":`${2.4+(i%9)*.13}s`,"--spin":`${540+(i%8)*135}deg`,"--w":`${5+(i%4)*2}px`,"--h":`${i%5===0?7:12+(i%4)*3}px`} as CSSProperties}/>)}</div>}
       <div className="eyebrow"><span>01</span> DEMO COMPLETED {active&&<> · AE: {active.aeName||"Not assigned"}</>}</div>
       <div className="hero-grid"><div className="hero-copy"><p className="moment-label">THE FLOOR IS YOURS</p>{active?<><div className="rep-hero">{PROFILE_PHOTOS[active.repName]?<img src={PROFILE_PHOTOS[active.repName]} alt=""/>:<span>{active.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<h1>{active.repName}</h1></div><p className="account-line"><b>{active.company}</b> <span>•</span> {active.product} <span>•</span> {formatCompletedAt(active.createdAt)}</p></>:<h1>Waiting for the next win</h1>}</div></div>
@@ -171,7 +161,7 @@ export default function Home() {
         <div className="track-meta"><div className="track-title-row"><div><strong>{currentSong.title}</strong><span>{`${currentSong.artist} · ${currentSong.startSeconds}s–${currentSong.startSeconds+15}s`}</span></div><span className="approved">AUTO CELEBRATION</span></div><div className="waveform">{Array.from({length:52}).map((_,i)=><i key={i} className={i/52*100<=progress?"passed":""} style={{height:`${20+((i*17)%64)}%`}}/>)}</div><div className="time-row"><span>0:{String(15-seconds).padStart(2,"0")}</span><button onClick={togglePlayback}>{playing?"PAUSE":"PLAY CLIP"}</button><span>0:15</span></div></div>
       </div>
     </section>
-    <section className="control-strip"><div className="recent-wins"><span className="strip-label">RECENT WINS</span><div className="win-list">{wins.slice(0,5).map(win=><button key={win.id} onClick={()=>launch(win)} className="win-item">{PROFILE_PHOTOS[win.repName]?<img className="avatar" src={PROFILE_PHOTOS[win.repName]} alt=""/>:<span className="avatar">{win.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<span><strong>{win.repName}</strong><small><b>{demoCountFor(win.repName)}</b> demos this month</small><em>{formatCompletedAt(win.createdAt)}</em></span></button>)}</div></div></section>
+    <section className="control-strip"><div className="recent-wins"><span className="strip-label">RECENT WINS</span><div className="win-list">{wins.slice(0,5).map(win=><button key={win.id} onClick={()=>launch(win)} className="win-item">{PROFILE_PHOTOS[win.repName]?<img className="avatar" src={PROFILE_PHOTOS[win.repName]} alt=""/>:<span className="avatar">{win.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<span><strong>{win.repName}</strong><small><b>{demoCountFor(win.repName)}</b> demos complete this month</small><em>{formatCompletedAt(win.createdAt)}</em></span></button>)}</div></div></section>
     {showSetup&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSetup(false)}}><section className="song-modal" role="dialog" aria-modal="true" aria-labelledby="song-modal-title"><div className="modal-head"><div><span className="strip-label">REP CELEBRATION</span><h2 id="song-modal-title">{setupRep?setupRep:"Set up songs"}</h2></div><button onClick={()=>setShowSetup(false)} aria-label="Close">×</button></div>{!setupRep?<><p>Choose an SDR to see or change their song.</p><div className="rep-song-list">{SDR_NAMES.map(name=>{const saved=songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(name));return <button key={name} onClick={()=>chooseSetupRep(name)}><span className="rep-list-avatar">{PROFILE_PHOTOS[name]?<img src={PROFILE_PHOTOS[name]} alt=""/>:name.split(" ").map(p=>p[0]).slice(0,2).join("")}</span><span><strong>{name}</strong><small>{saved?`${saved.title} · ${saved.artist}`:"Default song"}</small></span><b>CHANGE ›</b></button>})}</div></>:<><button className="back-to-reps" onClick={()=>setSetupRep(null)}>‹ ALL SDRS</button><p>{setupSong?"Their saved song is loaded below. Paste a different URL to change it.":"The default song is loaded below. Paste a different URL to personalize it."}</p><div className="song-url-preview">{setupVideoId&&<img src={`https://i.ytimg.com/vi/${setupVideoId}/hqdefault.jpg`} alt="Selected YouTube song thumbnail"/>}<label>YOUTUBE LINK<input placeholder="https://youtube.com/watch?v=..." value={form.youtubeUrl} onChange={e=>setForm({...form,youtubeUrl:e.target.value})}/></label></div><label>START TIME IN SECONDS<input type="number" min="0" value={form.startSeconds} onChange={e=>setForm({...form,startSeconds:e.target.value})}/><small>Example: 1:12 into the song = 72 seconds. The site stops automatically 15 seconds later.</small></label>{formError&&<p className="form-error">{formError}</p>}<div className="modal-actions"><button onClick={()=>setSetupRep(null)}>BACK</button><button className="test-button" onClick={saveSong}>{setupSong?"SAVE CHANGES":"SAVE PERSONAL SONG"}</button></div></>}</section></div>}
   </main>;
 }
