@@ -53,6 +53,13 @@ const SDR_TEAM_BY_REP: Record<string, SdrTeam> = {
   "Ty Armstrong": "outbound",
 };
 
+const SDR_QUOTA_OVERRIDES: Record<string, number> = {
+  "Kana Makuakane": 45,
+  "Preston Francis": 6,
+  "Carson Heber": 6,
+  "Lexee Cheney": 13,
+};
+
 const LEADERBOARD_EXCLUDED = new Set(["Shaline Vogler"]);
 
 const SDR_NAMES = [
@@ -136,7 +143,7 @@ const photoFor=(name:string,map:Record<string,string>)=>{
   const normalized=normalizeRepName(name);
   return Object.entries(map).find(([key])=>normalizeRepName(key)===normalized)?.[1];
 };
-const quotaForRep=(name:string)=>SDR_QUOTA_BY_TEAM[SDR_TEAM_BY_REP[name]??"outbound"];
+const quotaForRep=(name:string)=>SDR_QUOTA_OVERRIDES[name]??SDR_QUOTA_BY_TEAM[SDR_TEAM_BY_REP[name]??"outbound"];
 const isLeaderboardExcluded=(name:string)=>LEADERBOARD_EXCLUDED.has(name)||[...LEADERBOARD_EXCLUDED].some(excluded=>normalizeRepName(excluded)===normalizeRepName(name));
 const pctToQuota=(count:number,quota:number)=>Math.min(100,Math.round((count/quota)*100));
 const buildLeaderboard=(counts:Record<string,number>)=>Object.entries(counts).filter(([repName])=>!isLeaderboardExcluded(repName)).map(([repName,count])=>{const quota=quotaForRep(repName);return{repName,count,quota,pct:pctToQuota(count,quota)}}).sort((a,b)=>b.pct-a.pct||b.count-a.count||a.repName.localeCompare(b.repName));
