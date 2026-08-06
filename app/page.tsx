@@ -54,7 +54,10 @@ const PROFILE_PHOTOS:Record<string,string> = {
 const initialWins: Win[] = [];
 const formatCompletedAt=(value:string)=>{if(value==="Just now")return value;const raw=String(value);const date=/^\d{10,13}$/.test(raw)?new Date(Number(raw.length===10?`${raw}000`:raw)):new Date(raw);return Number.isNaN(date.getTime())?"Recently":date.toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})};
 
-const songFor = (win:Win, songs:Song[]) => songs.find(s=>s.id===win.songId) ?? songs.find(s=>s.repName.toLowerCase()===win.repName.toLowerCase()) ?? {...DEFAULT_SONG,repName:win.repName};
+const normalizeRepName=(value:string)=>String(value??"").trim().replace(/\s+/g," ").toLowerCase();
+// The SDR's saved song is authoritative. HubSpot events may contain an empty,
+// stale, or default song id, so match the rep before considering the event id.
+const songFor = (win:Win, songs:Song[]) => songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(win.repName)) ?? songs.find(s=>s.id===win.songId) ?? {...DEFAULT_SONG,repName:win.repName};
 
 export default function Home() {
   const [wins,setWins]=useState(initialWins);
@@ -73,13 +76,14 @@ export default function Home() {
   const stopRef=useRef<number|null>(null);
   const fadeRefs=useRef<number[]>([]);
   const lastServerIdRef=useRef<string|null>(null);
+  const songsRef=useRef<Song[]>([]);
 
   const currentSong=active?songFor(active,songs):songs[0]??DEFAULT_SONG;
-  const setupSong=setupRep?songs.find(s=>s.repName.toLowerCase()===setupRep.toLowerCase()):undefined;
+  const setupSong=setupRep?songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(setupRep)):undefined;
   const setupVideoId=youtubeIdFromInput(form.youtubeUrl);
 
   const openSetup=()=>{setSetupRep(null);setFormError("");setShowSetup(true)};
-  const chooseSetupRep=(repName:string)=>{const saved=songs.find(s=>s.repName.toLowerCase()===repName.toLowerCase());setSetupRep(repName);setForm({repName,youtubeUrl:`https://www.youtube.com/watch?v=${saved?.videoId??DEFAULT_SONG.videoId}`,startSeconds:String(saved?.startSeconds??DEFAULT_SONG.startSeconds)});setFormError("")};
+  const chooseSetupRep=(repName:string)=>{const saved=songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(repName));setSetupRep(repName);setForm({repName,youtubeUrl:`https://www.youtube.com/watch?v=${saved?.videoId??DEFAULT_SONG.videoId}`,startSeconds:String(saved?.startSeconds??DEFAULT_SONG.startSeconds)});setFormError("")};
 
   const clearFades=useCallback(()=>{fadeRefs.current.forEach(timer=>window.clearTimeout(timer));fadeRefs.current=[]},[]);
 
@@ -99,24 +103,25 @@ export default function Home() {
     stopRef.current=window.setTimeout(()=>{clearFades();if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(0);if(typeof playerRef.current?.stopVideo==="function")playerRef.current.stopVideo();setPlaying(false);setSeconds(0)},15300);
   },[clearFades]);
 
-  const launch=useCallback((win:Win, availableSongs=songs)=>{
+  const launch=useCallback((win:Win, availableSongs=songsRef.current)=>{
     setActive(win); setWins(current=>[win,...current.filter(item=>item.id!==win.id)].slice(0,6));
     setSeconds(15); setCelebrating(true); window.setTimeout(()=>setCelebrating(false),3200);
     playSong(songFor(win,availableSongs));
-  },[playSong,songs]);
+  },[playSong]);
 
   useEffect(()=>{ if(!playing)return; const timer=window.setInterval(()=>setSeconds(v=>Math.max(0,v-1)),1000); return()=>window.clearInterval(timer)},[playing]);
 
   useEffect(()=>{
-    const boot=async()=>{
-      try{const res=await fetch("/api/songs",{cache:"no-store"});const data=await res.json() as {songs?:Song[]};const list=data.songs??[];setSongs(list);}
+    let mounted=true;
+    const refreshSongs=async()=>{
+      try{const res=await fetch("/api/songs",{cache:"no-store"});const data=await res.json() as {songs?:Song[]};const list=data.songs??[];if(mounted&&list.length){songsRef.current=list;setSongs(list);}}
       catch{/* Setup remains available while reconnecting. */}
-    }; boot();
+    }; refreshSongs();const poller=window.setInterval(refreshSongs,15000);return()=>{mounted=false;window.clearInterval(poller)};
   },[]);
 
   useEffect(()=>{
     let mounted=true;
-    const sync=async()=>{try{const res=await fetch("/api/events",{cache:"no-store"});const data=await res.json() as {events?:Win[];monthlyCounts?:{repName:string;count:number}[]};if(!mounted)return;const normalized=data.events??[];setWins(normalized);setMonthlyCounts(Object.fromEntries((data.monthlyCounts??[]).map(item=>[item.repName,item.count])));const newest=normalized[0];if(newest&&!active)setActive(newest);if(newest&&lastServerIdRef.current&&lastServerIdRef.current!==newest.id)launch(newest);if(newest)lastServerIdRef.current=newest.id}catch{}};
+    const sync=async()=>{try{const res=await fetch("/api/events",{cache:"no-store"});const data=await res.json() as {events?:Win[];monthlyCounts?:{repName:string;count:number}[]};if(!mounted)return;const normalized=data.events??[];setWins(normalized);setMonthlyCounts(Object.fromEntries((data.monthlyCounts??[]).map(item=>[item.repName,item.count])));const newest=normalized[0];if(newest&&!active)setActive(newest);if(newest&&lastServerIdRef.current&&lastServerIdRef.current!==newest.id){let availableSongs=songsRef.current;if(!availableSongs.length){try{const songRes=await fetch("/api/songs",{cache:"no-store"});const songData=await songRes.json() as {songs?:Song[]};availableSongs=songData.songs??[];if(availableSongs.length){songsRef.current=availableSongs;setSongs(availableSongs)}}catch{}}launch(newest,availableSongs)}if(newest)lastServerIdRef.current=newest.id}catch{}};
     sync();const poller=window.setInterval(sync,3000);return()=>{mounted=false;window.clearInterval(poller)};
   },[launch,active]);
 
@@ -136,7 +141,7 @@ export default function Home() {
     setFormError("");
     const response=await fetch("/api/songs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,startSeconds:Number(form.startSeconds)})});
     const data=await response.json() as {song?:Song;error?:string};if(!response.ok||!data.song){setFormError(data.error??"Could not save this clip");return}
-    setSongs(current=>[data.song!,...current.filter(s=>s.id!==data.song!.id&&s.repName.toLowerCase()!==data.song!.repName.toLowerCase())]);setSelectedSong(data.song.id);setSetupRep(null);setShowSetup(false);
+    setSongs(current=>{const updated=[data.song!,...current.filter(s=>s.id!==data.song!.id&&normalizeRepName(s.repName)!==normalizeRepName(data.song!.repName))];songsRef.current=updated;return updated});setSelectedSong(data.song.id);setSetupRep(null);setShowSetup(false);
   };
 
   const runTestDemo=async()=>{
@@ -167,6 +172,6 @@ export default function Home() {
       </div>
     </section>
     <section className="control-strip"><div className="recent-wins"><span className="strip-label">RECENT WINS</span><div className="win-list">{wins.slice(0,5).map(win=><button key={win.id} onClick={()=>launch(win)} className="win-item">{PROFILE_PHOTOS[win.repName]?<img className="avatar" src={PROFILE_PHOTOS[win.repName]} alt=""/>:<span className="avatar">{win.repName.split(" ").map(p=>p[0]).slice(0,2).join("")}</span>}<span><strong>{win.repName}</strong><small><b>{demoCountFor(win.repName)}</b> demos this month</small><em>{formatCompletedAt(win.createdAt)}</em></span></button>)}</div></div></section>
-    {showSetup&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSetup(false)}}><section className="song-modal" role="dialog" aria-modal="true" aria-labelledby="song-modal-title"><div className="modal-head"><div><span className="strip-label">REP CELEBRATION</span><h2 id="song-modal-title">{setupRep?setupRep:"Set up songs"}</h2></div><button onClick={()=>setShowSetup(false)} aria-label="Close">×</button></div>{!setupRep?<><p>Choose an SDR to see or change their song.</p><div className="rep-song-list">{SDR_NAMES.map(name=>{const saved=songs.find(s=>s.repName.toLowerCase()===name.toLowerCase());return <button key={name} onClick={()=>chooseSetupRep(name)}><span className="rep-list-avatar">{PROFILE_PHOTOS[name]?<img src={PROFILE_PHOTOS[name]} alt=""/>:name.split(" ").map(p=>p[0]).slice(0,2).join("")}</span><span><strong>{name}</strong><small>{saved?`${saved.title} · ${saved.artist}`:"Default song"}</small></span><b>CHANGE ›</b></button>})}</div></>:<><button className="back-to-reps" onClick={()=>setSetupRep(null)}>‹ ALL SDRS</button><p>{setupSong?"Their saved song is loaded below. Paste a different URL to change it.":"The default song is loaded below. Paste a different URL to personalize it."}</p><div className="song-url-preview">{setupVideoId&&<img src={`https://i.ytimg.com/vi/${setupVideoId}/hqdefault.jpg`} alt="Selected YouTube song thumbnail"/>}<label>YOUTUBE LINK<input placeholder="https://youtube.com/watch?v=..." value={form.youtubeUrl} onChange={e=>setForm({...form,youtubeUrl:e.target.value})}/></label></div><label>START TIME IN SECONDS<input type="number" min="0" value={form.startSeconds} onChange={e=>setForm({...form,startSeconds:e.target.value})}/><small>Example: 1:12 into the song = 72 seconds. The site stops automatically 15 seconds later.</small></label>{formError&&<p className="form-error">{formError}</p>}<div className="modal-actions"><button onClick={()=>setSetupRep(null)}>BACK</button><button className="test-button" onClick={saveSong}>{setupSong?"SAVE CHANGES":"SAVE PERSONAL SONG"}</button></div></>}</section></div>}
+    {showSetup&&<div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget)setShowSetup(false)}}><section className="song-modal" role="dialog" aria-modal="true" aria-labelledby="song-modal-title"><div className="modal-head"><div><span className="strip-label">REP CELEBRATION</span><h2 id="song-modal-title">{setupRep?setupRep:"Set up songs"}</h2></div><button onClick={()=>setShowSetup(false)} aria-label="Close">×</button></div>{!setupRep?<><p>Choose an SDR to see or change their song.</p><div className="rep-song-list">{SDR_NAMES.map(name=>{const saved=songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(name));return <button key={name} onClick={()=>chooseSetupRep(name)}><span className="rep-list-avatar">{PROFILE_PHOTOS[name]?<img src={PROFILE_PHOTOS[name]} alt=""/>:name.split(" ").map(p=>p[0]).slice(0,2).join("")}</span><span><strong>{name}</strong><small>{saved?`${saved.title} · ${saved.artist}`:"Default song"}</small></span><b>CHANGE ›</b></button>})}</div></>:<><button className="back-to-reps" onClick={()=>setSetupRep(null)}>‹ ALL SDRS</button><p>{setupSong?"Their saved song is loaded below. Paste a different URL to change it.":"The default song is loaded below. Paste a different URL to personalize it."}</p><div className="song-url-preview">{setupVideoId&&<img src={`https://i.ytimg.com/vi/${setupVideoId}/hqdefault.jpg`} alt="Selected YouTube song thumbnail"/>}<label>YOUTUBE LINK<input placeholder="https://youtube.com/watch?v=..." value={form.youtubeUrl} onChange={e=>setForm({...form,youtubeUrl:e.target.value})}/></label></div><label>START TIME IN SECONDS<input type="number" min="0" value={form.startSeconds} onChange={e=>setForm({...form,startSeconds:e.target.value})}/><small>Example: 1:12 into the song = 72 seconds. The site stops automatically 15 seconds later.</small></label>{formError&&<p className="form-error">{formError}</p>}<div className="modal-actions"><button onClick={()=>setSetupRep(null)}>BACK</button><button className="test-button" onClick={saveSong}>{setupSong?"SAVE CHANGES":"SAVE PERSONAL SONG"}</button></div></>}</section></div>}
   </main>;
 }
