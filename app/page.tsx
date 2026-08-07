@@ -425,7 +425,7 @@ export default function Home() {
   const demoCountFor=(name:string)=>monthlyCounts[name]??0;
   const leaderboard=buildLeaderboard(monthlyCounts);
   const topThree=leaderboard.slice(0,3);
-  const leaderboardRest=leaderboard.slice(3,12);
+  const leaderboardRest=leaderboard.slice(3,11);
   const monthLabel=new Date().toLocaleString("en-US",{month:"long",year:"numeric",timeZone:DISPLAY_TIMEZONE});
   const showDemoTakeover=celebrating&&active&&!leaderCelebrating;
   const renderFace=(name:string,map:Record<string,string>,className="")=>{const photo=photoFor(name,map);return photo?<img className={className} src={photo} alt=""/>:<span className={className}>{initialsFor(name)}</span>};
