@@ -163,21 +163,38 @@ const initialWins: Win[] = [];
 const formatCompletedAt=(value:string)=>{if(value==="Just now")return value;const raw=String(value);const date=/^\d{10,13}$/.test(raw)?new Date(Number(raw.length===10?`${raw}000`:raw)):new Date(raw);return Number.isNaN(date.getTime())?"Recently":date.toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",timeZone:DISPLAY_TIMEZONE})};
 
 const normalizeRepName=(value:string)=>String(value??"").trim().replace(/\s+/g," ").toLowerCase();
+const canonicalRepName=(value:string)=>String(value??"").trim().replace(/\s+/g," ");
+const repLookup=<T,>(map:Record<string,T>,name:string)=>{
+  if(map[name]!==undefined)return map[name];
+  const normalized=normalizeRepName(name);
+  return Object.entries(map).find(([key])=>normalizeRepName(key)===normalized)?.[1];
+};
 const photoFor=(name:string,map:Record<string,string>)=>{
   if(!name)return undefined;
   if(map[name])return map[name];
   const normalized=normalizeRepName(name);
   return Object.entries(map).find(([key])=>normalizeRepName(key)===normalized)?.[1];
 };
-const quotaForRep=(name:string)=>SDR_QUOTA_OVERRIDES[name]??SDR_QUOTA_BY_TEAM[SDR_TEAM_BY_REP[name]??"outbound"];
+const quotaForRep=(name:string)=>repLookup(SDR_QUOTA_OVERRIDES,name)??SDR_QUOTA_BY_TEAM[repLookup(SDR_TEAM_BY_REP,name)??"outbound"];
 const isLeaderboardExcluded=(name:string)=>LEADERBOARD_EXCLUDED.has(name)||[...LEADERBOARD_EXCLUDED].some(excluded=>normalizeRepName(excluded)===normalizeRepName(name));
+const mergeMonthlyCounts=(items:{repName:string;count:number}[]|undefined)=>{
+  const merged=new Map<string,{displayName:string;count:number}>();
+  for(const item of items??[]){
+    const displayName=canonicalRepName(item.repName);
+    if(!displayName||isLeaderboardExcluded(displayName))continue;
+    const norm=normalizeRepName(displayName);
+    const existing=merged.get(norm);
+    merged.set(norm,{displayName:existing?.displayName??displayName,count:(existing?.count??0)+Math.max(0,Number(item.count)||0)});
+  }
+  return Object.fromEntries([...merged.values()].map(entry=>[entry.displayName,entry.count]));
+};
 const pctToQuota=(count:number,quota:number)=>Math.min(100,Math.round((count/quota)*100));
 type LeaderboardEntry={repName:string;count:number;quota:number;pct:number;rank:number};
 const sameLeaderboardScore=(a:{pct:number},b:{pct:number})=>a.pct===b.pct;
 const medalForRank=(rank:number)=>rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":null;
 const buildLeaderboard=(counts:Record<string,number>)=>{const sorted=Object.entries(counts).filter(([repName])=>!isLeaderboardExcluded(repName)).map(([repName,count])=>{const quota=quotaForRep(repName);return{repName,count,quota,pct:pctToQuota(count,quota)}}).sort((a,b)=>b.pct-a.pct||b.count-a.count||a.repName.localeCompare(b.repName));const ranked:LeaderboardEntry[]=[];for(let index=0;index<sorted.length;index++){const entry=sorted[index]!;const rank=index===0||!sameLeaderboardScore(entry,sorted[index-1]!)?index+1:ranked[index-1]!.rank;ranked.push({...entry,rank})}return ranked};
 const rankBadgeForRep=(entries:LeaderboardEntry[],name:string)=>{const entry=entries.find(item=>normalizeRepName(item.repName)===normalizeRepName(name));if(!entry)return null;return medalForRank(entry.rank)??`#${entry.rank}`};
-const leaderFromCounts=(counts:Record<string,number>)=>{const top=buildLeaderboard(counts)[0];return top&&top.count>0?top.repName:null};
+const topLeaderFromCounts=(counts:Record<string,number>)=>{const top=buildLeaderboard(counts)[0];if(!top||top.count<=0)return null;return{displayName:top.repName,norm:normalizeRepName(top.repName),pct:top.pct,count:top.count}};
 const initialsFor=(name:string)=>name.split(" ").map(part=>part[0]).slice(0,2).join("");
 // The SDR's saved song is authoritative. Never borrow a song from another rep
 // when a HubSpot event contains an empty, stale, or default song id.
@@ -204,6 +221,8 @@ export default function Home() {
   const lastServerIdRef=useRef<string|null>(null);
   const leaderRef=useRef<string|null>(null);
   const leaderReadyRef=useRef(false);
+  const pendingLeaderRef=useRef<string|null>(null);
+  const leaderCelebratingRef=useRef(false);
   const previewReadyRef=useRef(false);
   const songsRef=useRef<Song[]>([]);
   const activeBeforeLeaderRef=useRef<Win|null>(null);
@@ -212,6 +231,7 @@ export default function Home() {
 
   useEffect(()=>{setLocalPreview(isLocalPreviewHost())},[]);
   useEffect(()=>{activeRef.current=active},[active]);
+  useEffect(()=>{leaderCelebratingRef.current=leaderCelebrating},[leaderCelebrating]);
 
   const leaderWin=newLeaderName?{id:"leader-celebration",repName:newLeaderName,company:"",product:"",songId:"",createdAt:""} as Win:null;
   const currentSong=leaderCelebrating&&leaderWin?songFor(leaderWin,songs):active?songFor(active,songs):songs[0]??DEFAULT_SONG;
@@ -271,7 +291,56 @@ export default function Home() {
 
   useEffect(()=>{
     let mounted=true;
-    const sync=async()=>{try{const res=await fetch("/api/events",{cache:"no-store"});const data=await res.json() as {events?:Win[];monthlyCounts?:{repName:string;count:number}[]};if(!mounted)return;const normalized=(data.events??[]).filter(item=>!isLeaderboardExcluded(item.repName));const counts=Object.fromEntries((data.monthlyCounts??[]).filter(item=>!isLeaderboardExcluded(item.repName)).map(item=>[item.repName,item.count]));const previewWin=localPreview?LOCAL_PREVIEW_WIN:null;const displayWins=previewWin?[previewWin,...normalized.filter(item=>item.id!==previewWin.id)]:normalized;setWins(displayWins);setMonthlyCounts(counts);const newest=normalized[0];const isNewEvent=Boolean(newest&&lastServerIdRef.current&&lastServerIdRef.current!==newest.id&&!localPreview);const nextLeader=leaderFromCounts(counts);const sameRepLeader=isNewEvent&&nextLeader&&normalizeRepName(newest!.repName)===normalizeRepName(nextLeader);if(leaderReadyRef.current&&nextLeader&&leaderRef.current&&leaderRef.current!==nextLeader&&!localPreview){let availableSongs=songsRef.current;if(!availableSongs.length){try{const songRes=await fetch("/api/songs",{cache:"no-store"});const songData=await songRes.json() as {songs?:Song[]};availableSongs=songData.songs??[];if(availableSongs.length){songsRef.current=availableSongs;setSongs(availableSongs)}}catch{}}launchLeader(nextLeader,availableSongs,sameRepLeader)}if(nextLeader)leaderRef.current=nextLeader;leaderReadyRef.current=true;if(localPreview&&!previewReadyRef.current){previewReadyRef.current=true}if(isNewEvent){let availableSongs=songsRef.current;if(!availableSongs.length){try{const songRes=await fetch("/api/songs",{cache:"no-store"});const songData=await songRes.json() as {songs?:Song[]};availableSongs=songData.songs??[];if(availableSongs.length){songsRef.current=availableSongs;setSongs(availableSongs)}}catch{}}launch(newest!,availableSongs)}if(newest)lastServerIdRef.current=newest.id}catch{}};
+    const loadSongs=async()=>{
+      let availableSongs=songsRef.current;
+      if(availableSongs.length)return availableSongs;
+      try{
+        const songRes=await fetch("/api/songs",{cache:"no-store"});
+        const songData=await songRes.json() as {songs?:Song[]};
+        availableSongs=songData.songs??[];
+        if(availableSongs.length){songsRef.current=availableSongs;setSongs(availableSongs)}
+      }catch{}
+      return availableSongs;
+    };
+    const sync=async()=>{
+      try{
+        const res=await fetch("/api/events",{cache:"no-store"});
+        const data=await res.json() as {events?:Win[];monthlyCounts?:{repName:string;count:number}[]};
+        if(!mounted)return;
+        const normalized=(data.events??[]).filter(item=>!isLeaderboardExcluded(item.repName));
+        const counts=mergeMonthlyCounts(data.monthlyCounts);
+        const previewWin=localPreview?LOCAL_PREVIEW_WIN:null;
+        const displayWins=previewWin?[previewWin,...normalized.filter(item=>item.id!==previewWin.id)]:normalized;
+        setWins(displayWins);
+        setMonthlyCounts(counts);
+        const newest=normalized[0];
+        const isNewEvent=Boolean(newest&&lastServerIdRef.current&&lastServerIdRef.current!==newest.id&&!localPreview);
+        const topLeader=topLeaderFromCounts(counts);
+        const nextLeaderNorm=topLeader?.norm??null;
+        const sameRepLeader=Boolean(isNewEvent&&topLeader&&newest&&normalizeRepName(newest.repName)===topLeader.norm);
+        if(!leaderReadyRef.current){
+          if(nextLeaderNorm)leaderRef.current=nextLeaderNorm;
+          leaderReadyRef.current=true;
+        }else if(topLeader&&leaderRef.current&&leaderRef.current!==nextLeaderNorm&&!localPreview&&!leaderCelebratingRef.current){
+          if(pendingLeaderRef.current===nextLeaderNorm){
+            const availableSongs=await loadSongs();
+            launchLeader(topLeader.displayName,availableSongs,sameRepLeader);
+            leaderRef.current=nextLeaderNorm;
+            pendingLeaderRef.current=null;
+          }else{
+            pendingLeaderRef.current=nextLeaderNorm;
+          }
+        }else if(nextLeaderNorm&&nextLeaderNorm===leaderRef.current){
+          pendingLeaderRef.current=null;
+        }
+        if(localPreview&&!previewReadyRef.current)previewReadyRef.current=true;
+        if(isNewEvent){
+          const availableSongs=await loadSongs();
+          launch(newest!,availableSongs);
+        }
+        if(newest)lastServerIdRef.current=newest.id;
+      }catch{}
+    };
     sync();const poller=window.setInterval(sync,3000);return()=>{mounted=false;window.clearInterval(poller)};
   },[launch,launchLeader,localPreview]);
 
