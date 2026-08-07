@@ -79,8 +79,8 @@ button { cursor:pointer; }
 .podium-stage { --podium-width:100%; position:relative; z-index:2; flex:1; min-height:0; height:100%; width:100%; max-width:100%; display:flex; flex-direction:column; align-items:stretch; justify-content:stretch; gap:0; padding:0; overflow:hidden; contain:layout; }
 .podium-label { margin:0; width:100%; max-width:100%; color:#BDE4DC; font-size:clamp(12px,1.45vh,15px); font-weight:800; letter-spacing:.18em; text-align:left; text-transform:uppercase; flex:0 0 auto; }
 .podium { display:flex; flex-direction:column; align-items:stretch; justify-content:stretch; gap:clamp(8px,1vh,12px); width:100%; max-width:100%; flex:1; min-height:0; height:100%; overflow:hidden; }
-.podium-leader { display:flex; flex-direction:column; width:100%; max-width:100%; flex:1.55 1 0; min-height:0; align-items:stretch; overflow:hidden; }
-.podium-leader .podium-slot { width:100%; max-width:100%; height:100%; min-height:0; display:grid; grid-template-rows:minmax(0,1fr) auto; gap:clamp(6px,.8vh,10px); }
+.podium-leader { display:flex; flex-direction:column; width:100%; max-width:100%; flex:1.15 1 0; min-height:0; align-items:stretch; overflow:hidden; }
+.podium-leader .podium-slot { width:100%; max-width:100%; height:100%; min-height:0; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:clamp(14px,1.6vw,22px); padding:clamp(12px,1.4vh,18px) clamp(14px,1.6vw,20px); border:2px solid rgba(189,228,220,.42); border-radius:14px; background:linear-gradient(135deg,rgba(189,228,220,.16),rgba(255,255,255,.05)); box-shadow:0 12px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08); }
 .podium-runner { display:flex; width:100%; max-width:100%; flex:0.72 1 0; min-height:0; overflow:hidden; }
 .podium-runner .podium-slot.is-compact { height:100%; min-height:0; }
 .podium-slot { display:flex; flex-direction:column; align-items:flex-start; gap:clamp(4px,.55vh,7px); width:100%; max-width:100%; min-width:0; min-height:0; }
@@ -95,16 +95,19 @@ button { cursor:pointer; }
 .podium-face,.podium-face img { object-fit:cover; border-radius:14px; flex-shrink:0; max-width:100%; }
 .podium-face { display:grid; place-items:center; overflow:hidden; background:linear-gradient(135deg,#91BCD4,#E0BFDE); color:#32363A; font-weight:800; }
 img.podium-face { display:block; width:100%; height:100%; max-width:100%; object-fit:cover; }
-.podium-leader .podium-face { width:auto; height:100%; max-width:100%; max-height:100%; aspect-ratio:1; justify-self:center; align-self:center; border:4px solid rgba(243,235,221,.92); box-shadow:0 12px 36px rgba(0,0,0,.32),0 0 0 10px rgba(189,228,220,.1); border-radius:14px; font-size:clamp(36px,4.5vh,56px); }
-.podium-leader .podium-face img { width:100%; height:100%; border-radius:0; object-fit:cover; }
+.podium-leader .podium-face { width:auto; height:min(100%,clamp(92px,14vh,132px)); max-width:min(100%,clamp(92px,14vh,132px)); max-height:min(100%,clamp(92px,14vh,132px)); aspect-ratio:1; flex:0 0 auto; align-self:center; border:4px solid rgba(243,235,221,.92); box-shadow:0 10px 28px rgba(0,0,0,.28),0 0 0 8px rgba(189,228,220,.12); border-radius:14px; font-size:clamp(32px,4vh,48px); }
+.podium-leader .podium-face img { width:100%; height:100%; border-radius:10px; object-fit:cover; }
 .podium-runner .podium-slot.is-compact.place-2 .podium-face,.podium-slot.is-compact.place-2 .podium-face { height:min(100%,clamp(64px,10vh,96px)); width:auto; max-width:min(100%,clamp(64px,10vh,96px)); aspect-ratio:1; flex:0 0 auto; border:3px solid rgba(255,255,255,.78); box-shadow:0 8px 20px rgba(0,0,0,.26); border-radius:12px; font-size:clamp(20px,2.4vh,28px); }
 .podium-runner .podium-slot.is-compact.place-3 .podium-face,.podium-slot.is-compact.place-3 .podium-face { height:min(100%,clamp(56px,9vh,84px)); width:auto; max-width:min(100%,clamp(56px,9vh,84px)); aspect-ratio:1; flex:0 0 auto; border:2px solid rgba(255,255,255,.55); box-shadow:0 6px 16px rgba(0,0,0,.22); border-radius:10px; font-size:clamp(16px,2vh,22px); }
 .podium-slot.is-compact.place-2 .podium-copy strong { font-size:clamp(32px,3.45vh,44px); }
 .podium-slot.is-compact.place-3 .podium-copy strong { font-size:clamp(28px,3vh,38px); }
-.podium-leader .podium-copy { flex-shrink:0; padding-bottom:2px; }
-.podium-leader .podium-copy strong { font-size:clamp(44px,4.65vh,62px); font-weight:500; }
-.podium-leader .podium-copy span { color:#C7CDCF; font-size:clamp(40px,4.6vh,56px); line-height:1.05; font-weight:700; }
-.podium-leader .podium-copy em { color:#BDE4DC; font-size:clamp(44px,5vh,64px); line-height:1.05; font-weight:800; }
+.podium-leader .podium-copy { flex:1 1 auto; min-width:0; max-width:none; min-height:0; display:flex; flex-direction:column; justify-content:center; align-items:stretch; gap:clamp(6px,.7vh,10px); padding:0; overflow:hidden; }
+.podium-leader .podium-copy strong { font-size:clamp(34px,3.8vh,48px); font-weight:600; line-height:1.08; }
+.podium-leader-stats { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto auto; align-items:end; column-gap:clamp(12px,1.4vw,20px); row-gap:clamp(4px,.5vh,7px); width:100%; min-width:0; }
+.podium-leader-count { grid-column:1; color:#C7CDCF; font-size:clamp(30px,3.4vh,42px); line-height:1; font-weight:700; white-space:nowrap; }
+.podium-leader-pct { grid-column:2; color:#BDE4DC; font-size:clamp(34px,3.8vh,48px); line-height:1; font-weight:800; font-style:normal; white-space:nowrap; }
+.podium-leader-bar { grid-column:1 / -1; width:100%; height:7px; margin:0; border-radius:999px; background:rgba(255,255,255,.14); overflow:hidden; }
+.podium-leader-bar i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#91BCD4,#BDE4DC); }
 .podium-slot.is-compact.place-2 .podium-copy span,.podium-slot.is-compact.place-2 .podium-copy em { font-size:clamp(32px,3.6vh,44px); line-height:1.1; font-weight:700; }
 .podium-slot.is-compact.place-2 .podium-copy em { font-weight:800; color:#BDE4DC; }
 .podium-slot.is-compact.place-3 .podium-copy span,.podium-slot.is-compact.place-3 .podium-copy em { font-size:clamp(28px,3.2vh,38px); line-height:1.1; font-weight:700; }
