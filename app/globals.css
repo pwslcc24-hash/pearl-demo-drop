@@ -172,9 +172,9 @@ img.podium-face { display:block; width:100%; height:100%; object-fit:cover; }
 .avatar { display:grid; place-items:center; width:38px; height:38px; flex:0 0 38px; border-radius:10px; background:linear-gradient(135deg,#91BCD4,#F3EBDD); color:#32363A; font-size:10px; font-weight:800; }
 img.avatar{object-fit:cover}
 .win-copy strong,.win-copy small,.win-copy em { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.win-copy strong { font-size:14px; line-height:1.2; font-weight:700; color:#32363A; }
-.win-copy small { margin-top:0; color:#899198; font-size:clamp(12px,1.35vh,14px); line-height:1.15; }
-.win-copy small b{color:#32363A;font-size:clamp(22px,2.5vh,28px);margin-right:4px;font-weight:800;line-height:1}
+.win-copy strong { font-size:clamp(20px,2.2vh,26px); line-height:1.15; font-weight:700; color:#32363A; }
+.win-copy small { margin-top:0; color:#899198; font-size:clamp(11px,1.2vh,13px); line-height:1.15; }
+.win-copy small b{color:#32363A;font-size:clamp(18px,2vh,22px);margin-right:4px;font-weight:800;line-height:1}
 .win-copy em{margin-top:1px;color:#A5ACB3;font-size:10px;font-style:normal;line-height:1.2}
 .is-celebrating .score-orbit { animation:scorePop .7s cubic-bezier(.2,.9,.2,1); }
 .is-celebrating .hero-copy h1 { animation:nameIn .65s cubic-bezier(.2,.9,.2,1); }
