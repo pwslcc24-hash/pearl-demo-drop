@@ -224,7 +224,7 @@ export default function Home() {
   const lastServerIdRef=useRef<string|null>(null);
   const leaderRef=useRef<string|null>(null);
   const leaderReadyRef=useRef(false);
-  const pendingLeaderRef=useRef<string|null>(null);
+  const prevCountsRef=useRef<Record<string,number>>({});
   const leaderCelebratingRef=useRef(false);
   const previewReadyRef=useRef(false);
   const songsRef=useRef<Song[]>([]);
@@ -328,24 +328,26 @@ export default function Home() {
         const newest=normalized[0];
         const isNewEvent=Boolean(newest&&lastServerIdRef.current&&lastServerIdRef.current!==newest.id&&!localPreview);
         const topLeader=topLeaderFromCounts(counts);
-        const nextLeaderNorm=topLeader?.norm??null;
         const sameRepLeader=Boolean(isNewEvent&&topLeader&&newest&&normalizeRepName(newest.repName)===topLeader.norm);
         let leaderLaunched=false;
+
         if(!leaderReadyRef.current){
-          if(nextLeaderNorm)leaderRef.current=nextLeaderNorm;
+          if(topLeader)leaderRef.current=topLeader.norm;
+          prevCountsRef.current=counts;
           leaderReadyRef.current=true;
-        }else if(topLeader&&leaderRef.current&&leaderRef.current!==nextLeaderNorm&&!localPreview&&!leaderCelebratingRef.current){
-          if(pendingLeaderRef.current===nextLeaderNorm){
-            launchLeader(topLeader.displayName);
-            leaderRef.current=nextLeaderNorm;
-            pendingLeaderRef.current=null;
+        }else if(isNewEvent&&newest&&!localPreview&&!leaderCelebratingRef.current){
+          const leaderBefore=topLeaderFromCounts(prevCountsRef.current);
+          const eventRep=canonicalRepName(newest.repName);
+          const optimisticCounts={...counts,[eventRep]:Math.max(counts[eventRep]??0,(prevCountsRef.current[eventRep]??counts[eventRep]??0)+1)};
+          const leaderAfter=topLeaderFromCounts(optimisticCounts);
+          if(leaderAfter&&leaderBefore?.norm!==leaderAfter.norm){
+            launchLeader(leaderAfter.displayName);
             leaderLaunched=true;
-          }else{
-            pendingLeaderRef.current=nextLeaderNorm;
           }
-        }else if(nextLeaderNorm&&nextLeaderNorm===leaderRef.current){
-          pendingLeaderRef.current=null;
         }
+
+        if(topLeader)leaderRef.current=topLeader.norm;
+        prevCountsRef.current=counts;
         if(localPreview&&!previewReadyRef.current)previewReadyRef.current=true;
         if(isNewEvent&&!(leaderLaunched&&sameRepLeader)){
           const availableSongs=await loadSongs();
