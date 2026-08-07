@@ -11,6 +11,8 @@ from playwright.async_api import async_playwright
 from hubspot_browser import get_browser_context
 from hubspot_owners import OwnerDirectory
 
+from demo_reconcile import ALL_SDR_TEAMS, analyze_deals, hubspot_demo_month
+
 PORTAL_ID = "5664760"
 DISPLAY_TZ = ZoneInfo(os.getenv("DEMO_WATCH_TIMEZONE", "America/Denver"))
 PAGE_SIZE = max(50, int(os.getenv("DEMO_WATCH_PAGE_SIZE", "100")))
@@ -19,6 +21,7 @@ POLL_SECONDS = max(10, int(os.getenv("DEMO_WATCH_POLL_SECONDS", "20")))
 OWNER_CACHE_TTL_HOURS = max(1, int(os.getenv("DEMO_WATCH_OWNER_CACHE_TTL_HOURS", "24")))
 EVENT_URL = os.getenv("DEMO_DROP_EVENT_URL", "https://pearl-demo-drop.pwhitworth5.chatgpt.site/api/events")
 STATUS_URL = os.getenv("DEMO_DROP_STATUS_URL", "https://pearl-demo-drop.pwhitworth5.chatgpt.site/api/worker-status")
+RECONCILE_URL = os.getenv("DEMO_DROP_RECONCILE_URL", "https://pearl-demo-drop.pwhitworth5.chatgpt.site/api/reconciliation")
 STATUS_SECRET = os.getenv("DEMO_DROP_STATUS_SECRET", "")
 STATE_PATH = Path(os.getenv("DEMO_WATCH_STATE_PATH", "/data/demo_watch_state.json"))
 OWNER_CACHE_PATH = Path(os.getenv("DEMO_WATCH_OWNER_CACHE_PATH", "/data/owner_cache.json"))
@@ -50,7 +53,10 @@ NAME_OVERRIDES = {
     "248448768": "Jared PoVey",
 }
 
-PROPERTIES = ["dealname", "demo_complete", "was_a_demo_completed_", "sdr_owner", "hubspot_owner_id", "hs_lastmodifieddate"]
+PROPERTIES = [
+    "dealname", "demo_complete", "was_a_demo_completed_", "sdr_owner", "smb_sdr_team",
+    "hubspot_owner_id", "hs_lastmodifieddate",
+]
 
 
 def now_iso():
@@ -81,7 +87,15 @@ async def report_status(status, message=""):
         print(f"Could not report status: {exc}", flush=True)
 
 
+async def report_reconciliation(payload):
+    try:
+        await asyncio.to_thread(post_json, RECONCILE_URL, payload)
+    except Exception as exc:
+        print(f"Could not report reconciliation: {exc}", flush=True)
+
+
 def summarize_counts(results, owners: OwnerDirectory):
+    month = current_month_label()
     counts: dict[str, int] = {}
     missing_sdr = 0
     unknown_sdr = 0
@@ -89,6 +103,8 @@ def summarize_counts(results, owners: OwnerDirectory):
 
     for item in results:
         props_map = props(item)
+        if hubspot_demo_month(props_map.get("demo_complete")) != month:
+            continue
         owner_id, rep_name = owners.resolve_sdr(props_map)
         if not owner_id:
             missing_sdr += 1
@@ -96,6 +112,9 @@ def summarize_counts(results, owners: OwnerDirectory):
         if not rep_name:
             unknown_sdr += 1
             unknown_ids.add(owner_id)
+            continue
+        team = str(props_map.get("smb_sdr_team") or "")
+        if team not in ALL_SDR_TEAMS:
             continue
         counts[rep_name] = counts.get(rep_name, 0) + 1
 
@@ -159,9 +178,9 @@ async def search_completed_page(context, csrf, offset, month_start_ms):
             "offset": offset,
             "requestOptions": {"properties": PROPERTIES},
             "filterGroups": [{"filters": [
-                {"property": "was_a_demo_completed_", "operator": "EQ", "value": "Yes"},
                 {"property": "demo_complete", "operator": "HAS_PROPERTY"},
                 {"property": "demo_complete", "operator": "GTE", "value": month_start_ms},
+                {"property": "sdr_owner", "operator": "HAS_PROPERTY"},
             ]}],
             "sorts": [{"property": "demo_complete", "order": "DESC"}],
         }),
@@ -243,10 +262,15 @@ async def run():
                             save_state(sent)
                             print(f"Sent demo: {rep_name} — {event['company']}", flush=True)
                     summary = await report_monthly_counts(results, owners)
+                    recon = analyze_deals(results, owners, current_month_label(), summary["counts"])
+                    await report_reconciliation({**recon.to_payload(), "checkedAt": now_iso()})
                     status_bits = [
-                        f"Synced {len(results)} completed demos for {current_month_label()}",
-                        f"{sum(summary['counts'].values())} mapped to SDRs",
+                        f"Synced {len(results)} demo_complete deals for {current_month_label()}",
+                        f"{sum(summary['counts'].values())} on SDR 2026 dashboard definition",
                     ]
+                    drift = recon.drift_reps()
+                    if drift:
+                        status_bits.append(recon.summary_message()[:180])
                     if summary["missing_sdr"]:
                         status_bits.append(f"{summary['missing_sdr']} missing sdr_owner in HubSpot")
                     if summary["unknown_sdr"]:
