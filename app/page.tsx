@@ -269,8 +269,9 @@ export default function Home() {
 
   useEffect(()=>{playSongRef.current=playSong},[playSong]);
 
-  const launch=useCallback((win:Win, availableSongs=songsRef.current)=>{
-    setActive(win); setWins(current=>[win,...current.filter(item=>item.id!==win.id)].slice(0,6));
+  const launch=useCallback((win:Win, availableSongs=songsRef.current, updateWins=true)=>{
+    setActive(win);
+    if(updateWins)setWins(current=>[win,...current.filter(item=>item.id!==win.id)].slice(0,6));
     setSeconds(15); setCelebrating(true);
     window.setTimeout(()=>{setCelebrating(false);setActive(null)},15300);
     playSong(songFor(win,availableSongs));
@@ -388,8 +389,7 @@ export default function Home() {
       const response=await fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"replay-most-recent"})});
       const data=await response.json() as {event?:Win};
       if(!response.ok||!data.event)return;
-      lastServerIdRef.current=data.event.id;
-      launch(data.event,songsRef.current);
+      launch(data.event,songsRef.current,false);
     }catch{/* The live feed will stay unchanged if the replay request fails. */}
   };
 

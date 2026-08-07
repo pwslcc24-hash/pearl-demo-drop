@@ -63,7 +63,7 @@ export async function GET() {
   try {
     const db = await ready();
     const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt, ae_name AS aeName
-      FROM demo_events WHERE id NOT LIKE 'monthly-count:%' ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
+      FROM demo_events WHERE id NOT LIKE 'monthly-count:%' AND id NOT LIKE 'replay-%' ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
     const { monthKey, monthStartIso } = monthContext();
     const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' ORDER BY count DESC`).bind(`monthly-count:${monthKey}:%`).all() as D1Result<{repName:string;count:number}>;
     const syncMeta = await db.prepare(`SELECT MAX(created_at) AS syncedAt FROM demo_events WHERE id LIKE ?`).bind(`monthly-count:${monthKey}:%`).first() as { syncedAt?: string } | null;
@@ -84,13 +84,10 @@ export async function POST(request: Request) {
     const body = await request.json() as Record<string, unknown>;
     if (body.action === "replay-most-recent") {
       const db = await ready();
-      const result = await db.prepare(`SELECT rep_name AS repName, company, product, song_id AS songId, ae_name AS aeName
-        FROM demo_events WHERE id NOT LIKE 'monthly-count:%' ORDER BY rowid DESC LIMIT 1`).first() as Omit<DemoEvent,"id"|"createdAt"> | null;
+      const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt, ae_name AS aeName
+        FROM demo_events WHERE id NOT LIKE 'monthly-count:%' AND id NOT LIKE 'replay-%' ORDER BY rowid DESC LIMIT 1`).first() as DemoEvent | null;
       if (!result) return json({ error: "There is no completed demo to replay yet" }, 404);
-      const event: DemoEvent = {...result,id:`replay-${Date.now()}-${Math.random().toString(36).slice(2)}`,createdAt:new Date().toISOString()};
-      await db.prepare("INSERT INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .bind(event.id,event.repName,event.company,event.product,event.songId,event.createdAt,event.aeName??"").run();
-      return json({ok:true,event},201);
+      return json({ ok: true, event: result }, 200);
     }
     if (Array.isArray(body.monthlyCounts)) {
       const month = String(body.month ?? monthContext().monthKey);
