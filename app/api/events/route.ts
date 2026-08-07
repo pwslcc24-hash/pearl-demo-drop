@@ -85,9 +85,27 @@ export async function POST(request: Request) {
     if (body.action === "replay-most-recent") {
       const db = await ready();
       const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt, ae_name AS aeName
-        FROM demo_events WHERE id NOT LIKE 'monthly-count:%' AND id NOT LIKE 'replay-%' ORDER BY rowid DESC LIMIT 1`).first() as DemoEvent | null;
+        FROM demo_events WHERE id NOT LIKE 'monthly-count:%' AND id NOT LIKE 'replay-%' AND id NOT LIKE 'test-%' ORDER BY rowid DESC LIMIT 1`).first() as DemoEvent | null;
       if (!result) return json({ error: "There is no completed demo to replay yet" }, 404);
       return json({ ok: true, event: result }, 200);
+    }
+    if (body.action === "test-demo-complete") {
+      const repName = String(body.repName ?? body.rep_name ?? "").trim();
+      if (!repName) return json({ error: "repName is required" }, 400);
+      const db = await ready();
+      await db.prepare("DELETE FROM demo_events WHERE id LIKE 'test-%'").run();
+      const event: DemoEvent = {
+        id: `test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        repName,
+        company: "Demo Complete Test",
+        product: "Demo completed",
+        songId: "victory-lap",
+        createdAt: new Date().toISOString(),
+        aeName: String(body.aeName ?? body.ae_name ?? ""),
+      };
+      await db.prepare("INSERT INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(event.id, event.repName, event.company, event.product, event.songId, event.createdAt, event.aeName).run();
+      return json({ ok: true, event }, 201);
     }
     if (Array.isArray(body.monthlyCounts)) {
       const month = String(body.month ?? monthContext().monthKey);

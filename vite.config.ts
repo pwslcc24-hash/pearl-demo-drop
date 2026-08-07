@@ -59,6 +59,7 @@ export default defineConfig(async () => {
           changeOrigin: true,
           secure: true,
           bypass(req) {
+            if (req.url?.startsWith("/api/events")) return;
             if (req.method && req.method !== "GET") return req.url;
           },
         },

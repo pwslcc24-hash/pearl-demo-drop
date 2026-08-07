@@ -322,20 +322,22 @@ export default function Home() {
         const normalized=(data.events??[]).filter(item=>!isLeaderboardExcluded(item.repName));
         const counts=mergeMonthlyCounts(data.monthlyCounts);
         const previewWin=localPreview?LOCAL_PREVIEW_WIN:null;
-        const displayWins=previewWin?[previewWin,...normalized.filter(item=>item.id!==previewWin.id)]:normalized;
+        const liveWins=normalized.filter(item=>!item.id.startsWith("test-"));
+        const displayWins=previewWin?[previewWin,...liveWins.filter(item=>item.id!==previewWin.id)]:liveWins;
         setWins(displayWins);
         setMonthlyCounts(counts);
         const newest=normalized[0];
+        const isTestBroadcast=Boolean(newest?.id.startsWith("test-"));
         const isNewEvent=Boolean(newest&&lastServerIdRef.current&&lastServerIdRef.current!==newest.id&&!localPreview);
         const topLeader=topLeaderFromCounts(counts);
-        const sameRepLeader=Boolean(isNewEvent&&topLeader&&newest&&normalizeRepName(newest.repName)===topLeader.norm);
+        const sameRepLeader=Boolean(isNewEvent&&!isTestBroadcast&&topLeader&&newest&&normalizeRepName(newest.repName)===topLeader.norm);
         let leaderLaunched=false;
 
         if(!leaderReadyRef.current){
           if(topLeader)leaderRef.current=topLeader.norm;
           prevCountsRef.current=counts;
           leaderReadyRef.current=true;
-        }else if(isNewEvent&&newest&&!localPreview&&!leaderCelebratingRef.current){
+        }else if(isNewEvent&&newest&&!isTestBroadcast&&!localPreview&&!leaderCelebratingRef.current){
           const leaderBefore=topLeaderFromCounts(prevCountsRef.current);
           const eventRep=canonicalRepName(newest.repName);
           const optimisticCounts={...counts,[eventRep]:Math.max(counts[eventRep]??0,(prevCountsRef.current[eventRep]??counts[eventRep]??0)+1)};
@@ -349,9 +351,13 @@ export default function Home() {
         if(topLeader)leaderRef.current=topLeader.norm;
         prevCountsRef.current=counts;
         if(localPreview&&!previewReadyRef.current)previewReadyRef.current=true;
-        if(isNewEvent&&!(leaderLaunched&&sameRepLeader)){
+        if(isNewEvent){
           const availableSongs=await loadSongs();
-          launch(newest!,availableSongs);
+          if(isTestBroadcast){
+            launch(newest!,availableSongs,false);
+          }else if(!(leaderLaunched&&sameRepLeader)){
+            launch(newest!,availableSongs);
+          }
         }
         if(newest)lastServerIdRef.current=newest.id;
       }catch{}
@@ -395,20 +401,17 @@ export default function Home() {
     }catch{/* The live feed will stay unchanged if the replay request fails. */}
   };
 
-  const testDemoComplete=useCallback((repName:string)=>{
-    const sampleAe=wins.find(win=>normalizeRepName(win.repName)===normalizeRepName(repName))?.aeName??"";
-    const win:Win={
-      id:`test-${Date.now()}`,
-      repName,
-      company:"Demo Complete Test",
-      product:"Demo completed",
-      songId:"",
-      createdAt:new Date().toISOString(),
-      aeName:sampleAe,
-    };
+  const testDemoComplete=useCallback(async(repName:string)=>{
     setShowSetup(false);
     setSetupRep(null);
-    launch(win,songsRef.current,false);
+    const sampleAe=wins.find(win=>normalizeRepName(win.repName)===normalizeRepName(repName))?.aeName??"";
+    try{
+      const response=await fetch("/api/events",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"test-demo-complete",repName,aeName:sampleAe})});
+      const data=await response.json() as {event?:Win};
+      if(!response.ok||!data.event)return;
+      lastServerIdRef.current=data.event.id;
+      launch(data.event,songsRef.current,false);
+    }catch{/* Ignore failed test broadcasts. */}
   },[launch,wins]);
 
   const testNewLeader=()=>{
