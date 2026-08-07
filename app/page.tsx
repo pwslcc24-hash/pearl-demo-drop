@@ -189,7 +189,8 @@ const mergeMonthlyCounts=(items:{repName:string;count:number}[]|undefined)=>{
   }
   return Object.fromEntries([...merged.values()].map(entry=>[entry.displayName,entry.count]));
 };
-const pctToQuota=(count:number,quota:number)=>Math.min(100,Math.round((count/quota)*100));
+const pctToQuota=(count:number,quota:number)=>quota>0?Math.round((count/quota)*100):0;
+const quotaBarFill=(pct:number)=>Math.min(100,Math.max(0,pct));
 type LeaderboardEntry={repName:string;count:number;quota:number;pct:number;rank:number};
 const sameLeaderboardScore=(a:{pct:number},b:{pct:number})=>a.pct===b.pct;
 const medalForRank=(rank:number)=>rank===1?"🥇":rank===2?"🥈":rank===3?"🥉":null;
@@ -435,7 +436,7 @@ export default function Home() {
     </div>
   );
   const renderLeaderboard=()=>(
-    <aside className="leaderboard-panel"><div className="leaderboard-head"><span className="strip-label">MONTHLY LEADERBOARD</span><p>{monthLabel}</p><small>Inbound {SDR_QUOTA_BY_TEAM.inbound} · Outbound {SDR_QUOTA_BY_TEAM.outbound} · Cross-sell {SDR_QUOTA_BY_TEAM["cross-sell"]} · Blitz {SDR_QUOTA_BY_TEAM.blitz} demo completes = 100%</small></div><ol className="leaderboard-list">{leaderboardRest.length?leaderboardRest.map(entry=><li key={entry.repName} className="leaderboard-row"><span className="leaderboard-rank">{entry.rank}</span>{renderFace(entry.repName,PROFILE_PHOTOS,"leaderboard-avatar")}<div className="leaderboard-tab-body"><strong className="leaderboard-name">{entry.repName}</strong><span className="leaderboard-count">{entry.count} / {entry.quota}</span><div className="leaderboard-side"><em>{entry.pct}%</em><div className="quota-bar" aria-hidden="true"><i style={{width:`${entry.pct}%`}}/></div></div></div></li>):<li className="leaderboard-empty">{leaderboard.length>3?"Everyone else is still at zero.":"Waiting for monthly counts from HubSpot…"}</li>}</ol></aside>
+    <aside className="leaderboard-panel"><div className="leaderboard-head"><span className="strip-label">MONTHLY LEADERBOARD</span><p>{monthLabel}</p><small>Inbound {SDR_QUOTA_BY_TEAM.inbound} · Outbound {SDR_QUOTA_BY_TEAM.outbound} · Cross-sell {SDR_QUOTA_BY_TEAM["cross-sell"]} · Blitz {SDR_QUOTA_BY_TEAM.blitz} demo completes = 100%</small></div><ol className="leaderboard-list">{leaderboardRest.length?leaderboardRest.map(entry=><li key={entry.repName} className="leaderboard-row"><span className="leaderboard-rank">{entry.rank}</span>{renderFace(entry.repName,PROFILE_PHOTOS,"leaderboard-avatar")}<div className="leaderboard-tab-body"><strong className="leaderboard-name">{entry.repName}</strong><span className="leaderboard-count">{entry.count} / {entry.quota}</span><div className="leaderboard-side"><em>{entry.pct}%</em><div className="quota-bar" aria-hidden="true"><i style={{width:`${quotaBarFill(entry.pct)}%`}}/></div></div></div></li>):<li className="leaderboard-empty">{leaderboard.length>3?"Everyone else is still at zero.":"Waiting for monthly counts from HubSpot…"}</li>}</ol></aside>
   );
   const renderPodiumSlot=(entry:LeaderboardEntry,position:1|2|3)=>(
     <div key={entry.repName} className={`podium-slot place-${position}`}>{renderFace(entry.repName,PROFILE_PHOTOS,`podium-face place-${position}`)}<div className="podium-copy"><strong>{medalForRank(entry.rank)?<><span className="podium-medal podium-medal-inline" aria-hidden="true">{medalForRank(entry.rank)}</span>{entry.repName}</>:entry.repName}</strong><div className="podium-stats"><span className="podium-stat-count">{entry.count} / {entry.quota}</span><em className="podium-stat-pct">{entry.pct}%</em><div className="podium-stat-bar quota-bar" aria-hidden="true"><i style={{width:`${entry.pct}%`}}/></div></div></div></div>
