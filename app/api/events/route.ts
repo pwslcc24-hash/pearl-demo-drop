@@ -17,6 +17,21 @@ const cors = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 
+const DISPLAY_TIMEZONE = "America/Denver";
+
+function monthContext() {
+  const localDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DISPLAY_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const monthKey = localDate.slice(0, 7);
+  const [year, month] = monthKey.split("-").map(Number);
+  const monthStartIso = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+  return { monthKey, monthStartIso };
+}
+
 function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { ...cors, "Cache-Control": "no-store" } });
 }
@@ -49,16 +64,16 @@ export async function GET() {
     const db = await ready();
     const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt, ae_name AS aeName
       FROM demo_events WHERE id NOT LIKE 'monthly-count:%' ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
-    const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0,0,0,0);
-    const month = monthStart.toISOString().slice(0,7);
-    const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' ORDER BY count DESC`).bind(`monthly-count:${month}:%`).all() as D1Result<{repName:string;count:number}>;
-    const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' GROUP BY rep_name ORDER BY count DESC`).bind(monthStart.toISOString()).all() as D1Result<{repName:string;count:number}>;
+    const { monthKey, monthStartIso } = monthContext();
+    const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' ORDER BY count DESC`).bind(`monthly-count:${monthKey}:%`).all() as D1Result<{repName:string;count:number}>;
+    const syncMeta = await db.prepare(`SELECT MAX(created_at) AS syncedAt FROM demo_events WHERE id LIKE ?`).bind(`monthly-count:${monthKey}:%`).first() as { syncedAt?: string } | null;
+    const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' AND id NOT LIKE 'monthly-count:%' GROUP BY rep_name ORDER BY count DESC`).bind(monthStartIso).all() as D1Result<{repName:string;count:number}>;
     const events = (result.results ?? []).map(event =>
       event.id === "63436217740" && !event.aeName
         ? { ...event, aeName: "Paul Bills" }
         : event
     );
-    return json({ events, monthlyCounts: totals.results ?? [] });
+    return json({ events, monthlyCounts: totals.results ?? [], month: monthKey, syncedAt: syncMeta?.syncedAt ?? null, source: liveTotals.results?.length ? "hubspot-sync" : "event-fallback" });
   } catch {
     return json({ events: [], status: "initializing" });
   }
@@ -78,8 +93,8 @@ export async function POST(request: Request) {
       return json({ok:true,event},201);
     }
     if (Array.isArray(body.monthlyCounts)) {
-      const month = String(body.month ?? new Date().toISOString().slice(0,7));
-      const rows = body.monthlyCounts.slice(0,100).map(item=>item as Record<string,unknown>).filter(item=>String(item.repName??"").trim());
+      const month = String(body.month ?? monthContext().monthKey);
+      const rows = body.monthlyCounts.slice(0,200).map(item=>item as Record<string,unknown>).filter(item=>String(item.repName??"").trim());
       const db = await ready();
       await db.prepare("DELETE FROM demo_events WHERE id LIKE ?").bind(`monthly-count:${month}:%`).run();
       if(rows.length) await db.batch(rows.map(item=>{const rep=String(item.repName).trim();return db.prepare("INSERT INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, '', ?, '', ?, '')").bind(`monthly-count:${month}:${rep}`,rep,`MONTHLY_COUNT:${Math.max(0,Number(item.count)||0)}`,new Date().toISOString())}));
