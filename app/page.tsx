@@ -8,6 +8,7 @@ type YTPlayer = { loadVideoById(options:{videoId:string;startSeconds:number;endS
 declare global { interface Window { YT?: { Player:new(id:string, options:Record<string,unknown>)=>YTPlayer }; onYouTubeIframeAPIReady?:()=>void } }
 
 const DEFAULT_SONG:Song={id:"default-demo-drop",repName:"",title:"Default Demo Drop Song",artist:"YouTube",videoId:"vkSFh6HMUtQ",startSeconds:0};
+const LEADER_SONG:Song={id:"new-leader-anthem",repName:"",title:"New Leader",artist:"Celebration Anthem",videoId:"Vtmo5ZwWb6c",startSeconds:0};
 const youtubeIdFromInput=(value:string)=>{try{const url=new URL(value);if(url.hostname.includes("youtu.be"))return url.pathname.slice(1).split("/")[0];return url.searchParams.get("v")??url.pathname.match(/\/(?:embed|shorts)\/([^/?]+)/)?.[1]??""}catch{return /^[\w-]{11}$/.test(value)?value:""}};
 
 type SdrTeam = "inbound" | "outbound" | "cross-sell" | "blitz";
@@ -216,6 +217,8 @@ export default function Home() {
   const [form,setForm]=useState({repName:"Porter Whitworth",youtubeUrl:"",startSeconds:"0"});
   const [formError,setFormError]=useState("");
   const playerRef=useRef<YTPlayer|null>(null);
+  const pendingSongRef=useRef<Song|null>(null);
+  const playSongRef=useRef<(song?:Song)=>void>(()=>{});
   const stopRef=useRef<number|null>(null);
   const fadeRefs=useRef<number[]>([]);
   const lastServerIdRef=useRef<string|null>(null);
@@ -233,8 +236,8 @@ export default function Home() {
   useEffect(()=>{activeRef.current=active},[active]);
   useEffect(()=>{leaderCelebratingRef.current=leaderCelebrating},[leaderCelebrating]);
 
-  const leaderWin=newLeaderName?{id:"leader-celebration",repName:newLeaderName,company:"",product:"",songId:"",createdAt:""} as Win:null;
-  const currentSong=leaderCelebrating&&leaderWin?songFor(leaderWin,songs):active?songFor(active,songs):songs[0]??DEFAULT_SONG;
+
+  const currentSong=leaderCelebrating?LEADER_SONG:active?songFor(active,songs):songs[0]??DEFAULT_SONG;
   const setupSong=setupRep?songs.find(s=>normalizeRepName(s.repName)===normalizeRepName(setupRep)):undefined;
   const setupVideoId=youtubeIdFromInput(form.youtubeUrl);
 
@@ -244,7 +247,12 @@ export default function Home() {
   const clearFades=useCallback(()=>{fadeRefs.current.forEach(timer=>window.clearTimeout(timer));fadeRefs.current=[]},[]);
 
   const playSong=useCallback((song?:Song) => {
-    if (!song || !playerRef.current || typeof playerRef.current.loadVideoById !== "function") return;
+    if (!song) return;
+    if (!playerRef.current || typeof playerRef.current.loadVideoById !== "function") {
+      pendingSongRef.current=song;
+      return;
+    }
+    pendingSongRef.current=null;
     if (stopRef.current) window.clearTimeout(stopRef.current);
     clearFades();
     if(typeof playerRef.current.setVolume==="function")playerRef.current.setVolume(0);
@@ -259,6 +267,8 @@ export default function Home() {
     stopRef.current=window.setTimeout(()=>{clearFades();if(typeof playerRef.current?.setVolume==="function")playerRef.current.setVolume(0);if(typeof playerRef.current?.stopVideo==="function")playerRef.current.stopVideo();setPlaying(false);setSeconds(0)},15300);
   },[clearFades]);
 
+  useEffect(()=>{playSongRef.current=playSong},[playSong]);
+
   const launch=useCallback((win:Win, availableSongs=songsRef.current)=>{
     setActive(win); setWins(current=>[win,...current.filter(item=>item.id!==win.id)].slice(0,6));
     setSeconds(15); setCelebrating(true);
@@ -266,17 +276,18 @@ export default function Home() {
     playSong(songFor(win,availableSongs));
   },[playSong]);
 
-  const launchLeader=useCallback((repName:string, availableSongs=songsRef.current, skipSong=false)=>{
+  const launchLeader=useCallback((repName:string)=>{
     activeBeforeLeaderRef.current=activeRef.current;
+    setCelebrating(false);
+    setActive(null);
     setNewLeaderName(repName);
     setLeaderCelebrating(true);
     setSeconds(15);
     window.setTimeout(()=>{
       setLeaderCelebrating(false);
       setNewLeaderName(null);
-      setActive(null);
     },15300);
-    if(!skipSong)playSong(songFor({id:"leader-celebration",repName,company:"",product:"",songId:"",createdAt:new Date().toISOString()},availableSongs));
+    playSong(LEADER_SONG);
   },[playSong]);
 
   useEffect(()=>{ if(!playing)return; const timer=window.setInterval(()=>setSeconds(v=>Math.max(0,v-1)),1000); return()=>window.clearInterval(timer)},[playing]);
@@ -318,15 +329,16 @@ export default function Home() {
         const topLeader=topLeaderFromCounts(counts);
         const nextLeaderNorm=topLeader?.norm??null;
         const sameRepLeader=Boolean(isNewEvent&&topLeader&&newest&&normalizeRepName(newest.repName)===topLeader.norm);
+        let leaderLaunched=false;
         if(!leaderReadyRef.current){
           if(nextLeaderNorm)leaderRef.current=nextLeaderNorm;
           leaderReadyRef.current=true;
         }else if(topLeader&&leaderRef.current&&leaderRef.current!==nextLeaderNorm&&!localPreview&&!leaderCelebratingRef.current){
           if(pendingLeaderRef.current===nextLeaderNorm){
-            const availableSongs=await loadSongs();
-            launchLeader(topLeader.displayName,availableSongs,sameRepLeader);
+            launchLeader(topLeader.displayName);
             leaderRef.current=nextLeaderNorm;
             pendingLeaderRef.current=null;
+            leaderLaunched=true;
           }else{
             pendingLeaderRef.current=nextLeaderNorm;
           }
@@ -334,7 +346,7 @@ export default function Home() {
           pendingLeaderRef.current=null;
         }
         if(localPreview&&!previewReadyRef.current)previewReadyRef.current=true;
-        if(isNewEvent){
+        if(isNewEvent&&!(leaderLaunched&&sameRepLeader)){
           const availableSongs=await loadSongs();
           launch(newest!,availableSongs);
         }
@@ -346,9 +358,15 @@ export default function Home() {
 
   useEffect(()=>{
     if(!currentSong)return;
-    const cueCurrentSong=()=>{if(!playing&&typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15})};
+    const cueCurrentSong=()=>{
+      if(pendingSongRef.current){
+        playSongRef.current(pendingSongRef.current);
+        return;
+      }
+      if(!playing&&typeof playerRef.current?.cueVideoById==="function")playerRef.current.cueVideoById({videoId:currentSong.videoId,startSeconds:currentSong.startSeconds,endSeconds:currentSong.startSeconds+15});
+    };
     if(playerRef.current){cueCurrentSong();return}
-    const createPlayer=()=>{if(!window.YT||typeof window.YT.Player!=="function"||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{autoplay:1,playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin},events:{onReady:cueCurrentSong}});return true};
+    const createPlayer=()=>{if(!window.YT||typeof window.YT.Player!=="function"||playerRef.current)return false;playerRef.current=new window.YT.Player("youtube-player",{height:"200",width:"200",videoId:currentSong.videoId,playerVars:{autoplay:1,playsinline:1,controls:1,start:currentSong.startSeconds,origin:window.location.origin,enablejsapi:1},events:{onReady:cueCurrentSong,onStateChange:(event:{data:number})=>{if(event.data===0&&pendingSongRef.current)playSongRef.current(pendingSongRef.current)}}});return true};
     if(!document.querySelector("script[data-youtube-api]")){const script=document.createElement("script");script.src="https://www.youtube.com/iframe_api";script.async=true;script.dataset.youtubeApi="true";document.body.appendChild(script)}
     window.onYouTubeIframeAPIReady=createPlayer;
     if(createPlayer())return;
@@ -378,7 +396,7 @@ export default function Home() {
   const testNewLeader=()=>{
     const top=buildLeaderboard(monthlyCounts)[0];
     if(!top)return;
-    launchLeader(top.repName,songsRef.current);
+    launchLeader(top.repName);
   };
 
   const progress=((15-seconds)/15)*100;
