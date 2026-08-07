@@ -6,7 +6,7 @@ html, body { margin:0; height:100%; overflow:hidden; background:var(--dark); }
 body { color:var(--ink); font-family:"Recta",Arial,sans-serif; }
 button, select { font:inherit; }
 button { cursor:pointer; }
-.app-shell { height:100vh; height:100dvh; display:grid; grid-template-rows:58px minmax(0,1fr) minmax(136px,auto); overflow:hidden; background:#F1F5F9; }
+.app-shell { height:100vh; height:100dvh; display:grid; grid-template-rows:58px minmax(0,1fr) auto; overflow:hidden; background:#F1F5F9; }
 .topbar { position:relative; z-index:10; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#F8F9FC; border-bottom:1px solid #DFE4E8; }
 .brand-lockup,.topbar-actions { display:flex; align-items:center; gap:14px; }
 .brand-lockup img { width:46px; height:46px; padding:0; object-fit:contain; content:url("https://unrivaled-taffy-45056a.netlify.app/01-logo/pearl-logo-primary-circled.svg?v=2"); }
@@ -144,8 +144,8 @@ img.podium-face { display:block; width:100%; height:100%; object-fit:cover; }
 .waveform i { flex:1; min-width:2px; border-radius:3px; background:rgba(248,249,252,.26); transition:background .2s; }
 .waveform i.passed { background:linear-gradient(to top,#91BCD4,#BDE4DC); }
 .time-row { display:flex; justify-content:space-between; align-items:center; color:#A5ACB3; font-size:10px; gap:10px; }.time-row button{border:1px solid rgba(255,255,255,.2);border-radius:100px;background:transparent;color:#F8F9FC;padding:6px 12px;font-size:9px;font-weight:800;letter-spacing:.08em;white-space:nowrap}.audio-note{margin:10px 0 0;color:#FFC2B5;font-size:11px}
-.control-strip { position:relative; z-index:5; display:flex; align-items:stretch; min-height:136px; padding:12px 24px 14px; background:#F8F9FC; border-top:1px solid #DFE4E8; overflow:visible; }
-.song-picker,.recent-wins { display:flex; align-items:stretch; gap:12px; min-width:0; overflow:visible; }
+.control-strip { position:relative; z-index:5; display:flex; align-items:center; padding:8px 24px; background:#F8F9FC; border-top:1px solid #DFE4E8; overflow:visible; }
+.song-picker,.recent-wins { display:flex; align-items:center; gap:12px; min-width:0; overflow:visible; }
 .strip-label { color:#545B61; white-space:nowrap; }
 .select-wrap { position:relative; flex:1; }
 .select-wrap select { width:100%; appearance:none; padding:13px 38px 13px 15px; border:1px solid #DFE4E8; border-radius:10px; background:#fff; color:#32363A; font-size:13px; font-weight:600; outline:none; }
@@ -154,16 +154,16 @@ img.podium-face { display:block; width:100%; height:100%; object-fit:cover; }
 .test-button span { margin-left:7px; }
 .setup-button{padding:12px 14px;border:1px solid #DFE4E8;border-radius:100px;background:#fff;color:#545B61;font-size:10px;font-weight:800;letter-spacing:.08em;white-space:nowrap}
 .recent-wins { width:100%; gap:16px; overflow:visible; }
-.recent-wins .strip-label { align-self:flex-start; padding-top:6px; flex-shrink:0; }
-.win-list { display:grid; flex:1; min-width:0; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; align-items:stretch; overflow:visible; }
-.win-item { display:flex; flex:1; align-items:flex-start; gap:12px; min-width:0; min-height:100%; padding:4px 10px 6px 8px; border:0; border-radius:10px; background:transparent; text-align:left; overflow:visible; }
-.win-faces-col { display:flex; flex-direction:column; align-items:center; gap:6px; flex-shrink:0; padding-top:2px; }
+.recent-wins .strip-label { flex-shrink:0; }
+.win-list { display:grid; flex:1; min-width:0; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; align-items:center; overflow:visible; }
+.win-item { display:flex; flex:1; align-items:center; gap:12px; min-width:0; padding:2px 10px 2px 8px; border:0; border-radius:10px; background:transparent; text-align:left; overflow:visible; }
+.win-faces-col { display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0; }
 .win-faces { display:flex; align-items:center; flex-shrink:0; }
 .win-faces .avatar { position:relative; }
 .win-faces .avatar:not(.avatar-ae) { width:clamp(52px,5.2vh,64px); height:clamp(52px,5.2vh,64px); flex:0 0 clamp(52px,5.2vh,64px); border-radius:12px; font-size:clamp(12px,1.2vh,14px); }
 .win-faces .avatar-ae { width:clamp(30px,3vh,36px); height:clamp(30px,3vh,36px); flex:0 0 clamp(30px,3vh,36px); margin-left:-12px; border-radius:50%; border:2px solid #F8F9FC; box-shadow:0 2px 8px rgba(0,0,0,.12); z-index:1; }
 .win-rank-badge { display:block; color:#5E7787; font-size:clamp(11px,1.1vh,12px); font-weight:800; line-height:1; letter-spacing:.02em; }
-.win-copy { display:flex; flex-direction:column; justify-content:flex-start; gap:3px; min-width:0; overflow:visible; padding-top:1px; }
+.win-copy { display:flex; flex-direction:column; justify-content:center; gap:2px; min-width:0; overflow:visible; }
 .win-ae-line { display:block; margin-top:0; color:#667078; font-size:10px; font-weight:600; }
 .win-item:hover { background:#F1F5F9; }
 .avatar { display:grid; place-items:center; width:38px; height:38px; flex:0 0 38px; border-radius:10px; background:linear-gradient(135deg,#91BCD4,#F3EBDD); color:#32363A; font-size:10px; font-weight:800; }
