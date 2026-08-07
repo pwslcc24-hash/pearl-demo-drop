@@ -82,7 +82,7 @@ button { cursor:pointer; }
 .podium-row.place-1-row { flex:1.75 1 0; }
 .podium-row.place-2-row,.podium-row.place-3-row { flex:0.82 1 0; }
 .podium-slot { display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:clamp(12px,1.4vw,18px); width:100%; max-width:100%; min-width:0; min-height:0; height:100%; padding:clamp(10px,1.2vh,14px) clamp(12px,1.4vw,16px); border:1px solid rgba(255,255,255,.1); border-radius:12px; background:rgba(255,255,255,.04); text-align:left; overflow:hidden; }
-.podium-slot.place-1 { gap:clamp(16px,1.8vw,24px); padding:clamp(14px,1.6vh,20px) clamp(16px,1.8vw,22px); border:2px solid rgba(189,228,220,.42); border-radius:14px; background:linear-gradient(135deg,rgba(189,228,220,.16),rgba(255,255,255,.05)); box-shadow:0 12px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08); }
+.podium-slot.place-1 { gap:clamp(16px,1.8vw,24px); padding:clamp(14px,1.6vh,20px) clamp(16px,1.8vw,22px); border:2px solid rgba(189,228,220,.42); border-radius:14px; background:linear-gradient(135deg,rgba(189,228,220,.16),rgba(255,255,255,.05)); box-shadow:0 12px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08); align-items:stretch; }
 .podium-slot.place-2 { border-color:rgba(255,255,255,.14); }
 .podium-slot.place-3 { border-color:rgba(255,255,255,.08); opacity:.96; }
 .podium-rank { color:#BDE4DC; font-size:clamp(28px,4vh,44px); font-weight:800; line-height:1; }
@@ -100,7 +100,13 @@ img.podium-face { display:block; width:100%; height:100%; object-fit:cover; }
 .podium-slot.place-3 .podium-face { width:clamp(64px,10vh,88px); height:clamp(64px,10vh,88px); flex:0 0 clamp(64px,10vh,88px); border:2px solid rgba(255,255,255,.55); box-shadow:0 6px 16px rgba(0,0,0,.22); border-radius:10px; font-size:clamp(16px,2vh,22px); }
 .podium-copy { flex:1 1 auto; min-width:0; max-width:none; min-height:0; display:flex; flex-direction:column; justify-content:center; align-items:stretch; gap:clamp(5px,.6vh,8px); overflow:hidden; }
 .podium-copy strong { color:#F8F9FC; line-height:1.08; letter-spacing:-.02em; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.podium-slot.place-1 .podium-copy strong { font-size:clamp(34px,3.8vh,48px); }
+.podium-slot.place-1 .podium-copy { justify-content:space-between; gap:clamp(10px,1.2vh,16px); min-height:clamp(148px,24vh,220px); padding:2px 0 4px; }
+.podium-slot.place-1 .podium-copy strong { display:flex; align-items:flex-start; gap:10px; font-size:clamp(34px,3.8vh,48px); line-height:1.06; white-space:normal; overflow:visible; text-overflow:unset; text-wrap:balance; }
+.podium-slot.place-1 .podium-medal-inline { flex:0 0 auto; margin-top:2px; }
+.podium-slot.place-1 .podium-stats { display:grid; grid-template-columns:auto auto minmax(48px,1fr); grid-template-rows:auto; align-items:center; column-gap:clamp(12px,1.4vw,20px); row-gap:0; width:100%; min-width:0; flex-shrink:0; }
+.podium-slot.place-1 .podium-stat-count { grid-column:1; font-size:clamp(30px,3.4vh,42px); }
+.podium-slot.place-1 .podium-stat-pct { grid-column:2; font-size:clamp(34px,3.8vh,48px); }
+.podium-slot.place-1 .podium-stat-bar { grid-column:3; width:100%; height:12px; min-height:12px; align-self:center; }
 .podium-slot.place-2 .podium-copy strong { font-size:clamp(28px,3.1vh,38px); }
 .podium-slot.place-3 .podium-copy strong { font-size:clamp(24px,2.7vh,34px); }
 .podium-stats { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:1fr auto; align-items:end; column-gap:clamp(10px,1.2vw,18px); row-gap:clamp(5px,.55vh,8px); width:100%; min-width:0; }
@@ -108,9 +114,6 @@ img.podium-face { display:block; width:100%; height:100%; object-fit:cover; }
 .podium-stat-pct { grid-column:2; color:#BDE4DC; line-height:1; font-weight:800; font-style:normal; white-space:nowrap; }
 .podium-stat-bar { grid-column:1 / -1; width:100%; height:8px; min-height:8px; margin:0; border-radius:999px; background:rgba(255,255,255,.14); overflow:hidden; flex-shrink:0; align-self:end; }
 .podium-stat-bar i { display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,#91BCD4,#BDE4DC); }
-.podium-slot.place-1 .podium-stat-count { font-size:clamp(30px,3.4vh,42px); }
-.podium-slot.place-1 .podium-stat-pct { font-size:clamp(34px,3.8vh,48px); }
-.podium-slot.place-1 .podium-stat-bar { height:9px; min-height:9px; }
 .podium-slot.place-2 .podium-stat-count { font-size:clamp(24px,2.7vh,34px); }
 .podium-slot.place-2 .podium-stat-pct { font-size:clamp(28px,3.1vh,38px); }
 .podium-slot.place-3 .podium-stat-count { font-size:clamp(22px,2.4vh,30px); }
