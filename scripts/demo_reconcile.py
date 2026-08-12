@@ -32,6 +32,10 @@ def hubspot_demo_month(raw: str | None) -> str | None:
         sec = ms / 1000 if ms > 10_000_000_000 else ms
         return datetime.fromtimestamp(sec, timezone.utc).strftime("%Y-%m")
     except (ValueError, OverflowError, OSError):
+        pass
+    try:
+        return datetime.fromisoformat(raw.replace("Z", "+00:00")).strftime("%Y-%m")
+    except ValueError:
         return None
 
 

@@ -4,15 +4,33 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
-from playwright.async_api import async_playwright
-from hubspot_browser import get_browser_context
 from hubspot_owners import OwnerDirectory
 
 from demo_reconcile import ALL_SDR_TEAMS, analyze_deals, hubspot_demo_month
 
+
+def _load_dotenv():
+    env_path = Path(__file__).resolve().parent / ".env"
+    try:
+        lines = env_path.read_text().splitlines()
+    except FileNotFoundError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+_load_dotenv()
+
+HUBSPOT_API = "https://api.hubapi.com"
+HUBSPOT_ACCESS_TOKEN = os.getenv("HUBSPOT_ACCESS_TOKEN", "")
 PORTAL_ID = "5664760"
 DISPLAY_TZ = ZoneInfo(os.getenv("DEMO_WATCH_TIMEZONE", "America/Denver"))
 PAGE_SIZE = max(50, int(os.getenv("DEMO_WATCH_PAGE_SIZE", "100")))
@@ -162,48 +180,48 @@ def props(result):
     return {key: value.get("value") for key, value in result.get("properties", {}).items()}
 
 
-async def csrf_token(context):
-    cookies = await context.cookies("https://app.hubspot.com")
-    return next((cookie["value"] for cookie in cookies if cookie["name"] == "hubspotapi-csrf"), "")
-
-
-async def search_completed_page(context, csrf, offset, month_start_ms):
-    response = await context.request.post(
-        "https://app.hubspot.com/api/crm-search/search",
-        params={"portalId": PORTAL_ID, "hs_static_app": "crm-index-ui"},
-        headers={"x-hubspot-csrf-hubspotapi": csrf, "content-type": "application/json"},
-        data=json.dumps({
-            "objectTypeId": "0-3",
-            "count": PAGE_SIZE,
-            "offset": offset,
-            "requestOptions": {"properties": PROPERTIES},
-            "filterGroups": [{"filters": [
-                {"property": "demo_complete", "operator": "HAS_PROPERTY"},
-                {"property": "demo_complete", "operator": "GTE", "value": month_start_ms},
-                {"property": "sdr_owner", "operator": "HAS_PROPERTY"},
-            ]}],
-            "sorts": [{"property": "demo_complete", "order": "DESC"}],
-        }),
-        timeout=30000,
+def hubspot_search(token, body):
+    request = Request(
+        f"{HUBSPOT_API}/crm/v3/objects/deals/search",
+        data=json.dumps(body).encode(),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="POST",
     )
-    if response.status in (401, 403) or "text/html" in response.headers.get("content-type", ""):
-        raise PermissionError(f"HubSpot session rejected ({response.status})")
-    if response.status != 200:
-        raise RuntimeError(f"HubSpot search returned {response.status}")
-    return await response.json()
+    try:
+        with urlopen(request, timeout=30) as response:
+            return json.loads(response.read())
+    except HTTPError as exc:
+        if exc.code in (401, 403):
+            raise PermissionError(f"HubSpot API rejected ({exc.code})") from exc
+        raise RuntimeError(f"HubSpot search returned {exc.code}") from exc
 
 
-async def all_completed_this_month(context, csrf):
+def all_completed_this_month(token):
     month_start_ms = str(int(month_start_local().timestamp() * 1000))
     results = []
-    offset = 0
+    after = None
     for _ in range(MAX_PAGES):
-        payload = await search_completed_page(context, csrf, offset, month_start_ms)
+        body = {
+            "filterGroups": [{"filters": [
+                {"propertyName": "demo_complete", "operator": "HAS_PROPERTY"},
+                {"propertyName": "demo_complete", "operator": "GTE", "value": month_start_ms},
+                {"propertyName": "sdr_owner", "operator": "HAS_PROPERTY"},
+            ]}],
+            "sorts": [{"propertyName": "demo_complete", "direction": "DESCENDING"}],
+            "properties": PROPERTIES,
+            "limit": min(PAGE_SIZE, 200),
+        }
+        if after:
+            body["after"] = after
+        payload = hubspot_search(token, body)
         batch = payload.get("results", [])
-        results.extend(batch)
-        total = int(payload.get("total") or len(results))
-        offset += len(batch)
-        if not batch or offset >= total:
+        for row in batch:
+            results.append({
+                "objectId": row["id"],
+                "properties": {key: {"value": value} for key, value in (row.get("properties") or {}).items()},
+            })
+        after = (payload.get("paging") or {}).get("next", {}).get("after")
+        if not batch or not after:
             break
     return results
 
@@ -218,80 +236,73 @@ async def run():
         overrides=NAME_OVERRIDES,
     )
 
-    async with async_playwright() as playwright:
-        browser, context = await get_browser_context(playwright)
+    while True:
         try:
-            while True:
-                try:
-                    csrf = await csrf_token(context)
-                    if not csrf:
-                        raise PermissionError("HubSpot CSRF cookie missing; reauthentication required")
-                    await owners.refresh(context, csrf)
-                    results = await all_completed_this_month(context, csrf)
-                    current_ids = {str(item["objectId"]) for item in results}
-                    if not seeded:
-                        sent.update(current_ids)
+            if not HUBSPOT_ACCESS_TOKEN:
+                raise PermissionError("HUBSPOT_ACCESS_TOKEN not configured")
+            await asyncio.to_thread(owners.refresh, HUBSPOT_ACCESS_TOKEN)
+            results = await asyncio.to_thread(all_completed_this_month, HUBSPOT_ACCESS_TOKEN)
+            current_ids = {str(item["objectId"]) for item in results}
+            if not seeded:
+                sent.update(current_ids)
+                save_state(sent)
+                seeded = True
+                print(f"Seeded {len(current_ids)} existing demos; none replayed.", flush=True)
+            else:
+                for item in [entry for entry in reversed(results) if str(entry["objectId"]) not in sent]:
+                    deal_id = str(item["objectId"])
+                    props_map = props(item)
+                    owner_id, rep_name = owners.resolve_sdr(props_map)
+                    ae_name = owners.resolve_ae(props_map) or "Not assigned"
+                    if not rep_name:
+                        reason = "missing sdr_owner" if not owner_id else f"unknown SDR owner {owner_id}"
+                        print(f"Skipping {deal_id}: {reason}", flush=True)
+                        sent.add(deal_id)
                         save_state(sent)
-                        seeded = True
-                        print(f"Seeded {len(current_ids)} existing demos; none replayed.", flush=True)
-                    else:
-                        for item in [entry for entry in reversed(results) if str(entry["objectId"]) not in sent]:
-                            deal_id = str(item["objectId"])
-                            props_map = props(item)
-                            owner_id, rep_name = owners.resolve_sdr(props_map)
-                            ae_name = owners.resolve_ae(props_map) or "Not assigned"
-                            if not rep_name:
-                                reason = "missing sdr_owner" if not owner_id else f"unknown SDR owner {owner_id}"
-                                print(f"Skipping {deal_id}: {reason}", flush=True)
-                                sent.add(deal_id)
-                                save_state(sent)
-                                continue
-                            created_at = props_map.get("demo_complete") or props_map.get("hs_lastmodifieddate") or now_iso()
-                            event = {
-                                "id": deal_id,
-                                "repName": rep_name,
-                                "aeName": ae_name,
-                                "ae": ae_name,
-                                "company": props_map.get("dealname") or "Pearl customer",
-                                "product": "Demo completed",
-                                "songId": "",
-                                "createdAt": created_at,
-                            }
-                            await asyncio.to_thread(post_json, EVENT_URL, event)
-                            sent.add(deal_id)
-                            save_state(sent)
-                            print(f"Sent demo: {rep_name} — {event['company']}", flush=True)
-                    summary = await report_monthly_counts(results, owners)
-                    recon = analyze_deals(results, owners, current_month_label(), summary["counts"])
-                    await report_reconciliation({**recon.to_payload(), "checkedAt": now_iso()})
-                    status_bits = [
-                        f"Synced {len(results)} demo_complete deals for {current_month_label()}",
-                        f"{sum(summary['counts'].values())} on SDR 2026 dashboard definition",
-                    ]
-                    drift = recon.drift_reps()
-                    if drift:
-                        status_bits.append(recon.summary_message()[:180])
-                    if summary["missing_sdr"]:
-                        status_bits.append(f"{summary['missing_sdr']} missing sdr_owner in HubSpot")
-                    if summary["unknown_sdr"]:
-                        status_bits.append(f"{summary['unknown_sdr']} unknown owner IDs")
-                    if auth_alerted:
-                        await report_status("ok", "HubSpot session restored · " + " · ".join(status_bits))
-                    else:
-                        await report_status("ok", " · ".join(status_bits))
-                    auth_alerted = False
-                except PermissionError as exc:
-                    if not auth_alerted:
-                        await report_status("reauth_required", str(exc))
-                    auth_alerted = True
-                    print(f"REAUTH REQUIRED: {exc}", flush=True)
-                except Exception as exc:
-                    await report_status("error", str(exc))
-                    print(f"Watcher error: {exc}", flush=True)
-                await asyncio.sleep(POLL_SECONDS)
-        finally:
-            await context.close()
-            await browser.close()
+                        continue
+                    created_at = props_map.get("hs_lastmodifieddate") or props_map.get("demo_complete") or now_iso()
+                    event = {
+                        "id": deal_id,
+                        "repName": rep_name,
+                        "aeName": ae_name,
+                        "ae": ae_name,
+                        "company": props_map.get("dealname") or "Pearl customer",
+                        "product": "Demo completed",
+                        "songId": "",
+                        "createdAt": created_at,
+                    }
+                    await asyncio.to_thread(post_json, EVENT_URL, event)
+                    sent.add(deal_id)
+                    save_state(sent)
+                    print(f"Sent demo: {rep_name} — {event['company']}", flush=True)
+            summary = await report_monthly_counts(results, owners)
+            recon = analyze_deals(results, owners, current_month_label(), summary["counts"])
+            await report_reconciliation({**recon.to_payload(), "checkedAt": now_iso()})
+            status_bits = [
+                f"Synced {len(results)} demo_complete deals for {current_month_label()}",
+                f"{sum(summary['counts'].values())} on SDR 2026 dashboard definition",
+            ]
+            drift = recon.drift_reps()
+            if drift:
+                status_bits.append(recon.summary_message()[:180])
+            if summary["missing_sdr"]:
+                status_bits.append(f"{summary['missing_sdr']} missing sdr_owner in HubSpot")
+            if summary["unknown_sdr"]:
+                status_bits.append(f"{summary['unknown_sdr']} unknown owner IDs")
+            if auth_alerted:
+                await report_status("ok", "HubSpot auth restored · " + " · ".join(status_bits))
+            else:
+                await report_status("ok", " · ".join(status_bits))
+            auth_alerted = False
+        except PermissionError as exc:
+            if not auth_alerted:
+                await report_status("reauth_required", str(exc))
+            auth_alerted = True
+            print(f"REAUTH REQUIRED: {exc}", flush=True)
+        except Exception as exc:
+            await report_status("error", str(exc))
+            print(f"Watcher error: {exc}", flush=True)
+        await asyncio.sleep(POLL_SECONDS)
 
 
 if __name__ == "__main__":

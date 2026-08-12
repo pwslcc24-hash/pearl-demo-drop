@@ -89,6 +89,15 @@ export async function POST(request: Request) {
       if (!result) return json({ error: "There is no completed demo to replay yet" }, 404);
       return json({ ok: true, event: result }, 200);
     }
+    if (body.action === "backfill-timestamp") {
+      const id = String(body.id ?? "").trim();
+      const createdAt = String(body.createdAt ?? "").trim();
+      if (!id || !createdAt) return json({ error: "id and createdAt are required" }, 400);
+      const db = await ready();
+      await db.prepare("UPDATE demo_events SET created_at = ? WHERE id = ? AND id NOT LIKE 'monthly-count:%'")
+        .bind(createdAt, id).run();
+      return json({ ok: true, id, createdAt });
+    }
     if (body.action === "test-demo-complete") {
       const repName = String(body.repName ?? body.rep_name ?? "").trim();
       if (!repName) return json({ error: "repName is required" }, 400);

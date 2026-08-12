@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import json
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
+HUBSPOT_API = "https://api.hubapi.com"
 PORTAL_ID = "5664760"
 DEFAULT_CACHE_PATH = Path(__file__).resolve().parent / "owner_cache.json"
 
@@ -53,27 +56,31 @@ class OwnerDirectory:
         self.by_id = {**owners, **self.overrides}
         self.loaded_at = payload["fetchedAt"]
 
-    async def refresh(self, context, csrf, force: bool = False) -> None:
+    def refresh(self, token: str, force: bool = False) -> None:
         if not force and self.load_cache():
             return
-        response = await context.request.get(
-            "https://app.hubspot.com/api/owners/v2/owners",
-            params={"portalId": PORTAL_ID, "includeInactive": "true"},
-            headers={"x-hubspot-csrf-hubspotapi": csrf},
-            timeout=30000,
-        )
-        if response.status in (401, 403):
-            raise PermissionError(f"HubSpot owners API rejected ({response.status})")
-        if response.status != 200:
-            raise RuntimeError(f"HubSpot owners API returned {response.status}")
-        data = await response.json()
-        rows = data if isinstance(data, list) else data.get("results") or data.get("owners") or []
         owners: dict[str, str] = {}
-        for row in rows:
-            owner_id = str(row.get("ownerId") or row.get("id") or "")
-            name = _display_name(row)
-            if owner_id and name:
-                owners[owner_id] = name
+        after = None
+        for _ in range(10):
+            url = f"{HUBSPOT_API}/crm/v3/owners?limit=500"
+            if after:
+                url += f"&after={after}"
+            request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    data = json.loads(response.read())
+            except urllib.error.HTTPError as exc:
+                if exc.code in (401, 403):
+                    raise PermissionError(f"HubSpot owners API rejected ({exc.code})") from exc
+                raise RuntimeError(f"HubSpot owners API returned {exc.code}") from exc
+            for row in data.get("results", []):
+                owner_id = str(row.get("id") or "")
+                name = _display_name(row)
+                if owner_id and name:
+                    owners[owner_id] = name
+            after = (data.get("paging") or {}).get("next", {}).get("after")
+            if not after:
+                break
         self.save_cache(owners)
 
     def name_for(self, owner_id: str | None) -> str | None:
