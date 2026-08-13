@@ -59,6 +59,10 @@ const SDR_QUOTA_OVERRIDES: Record<string, number> = {
   "Preston Francis": 6,
   "Carson Heber": 6,
   "Lexee Cheney": 13,
+  "Kaden Backlund": 16,
+  "Trey Falkner": 16,
+  "Cason Clarke": 16,
+  "Spencer Anderson": 16,
 };
 
 const LEADERBOARD_EXCLUDED = new Set(["Shaline Vogler"]);
@@ -92,7 +96,8 @@ const AE_PHOTOS:Record<string,string> = {
   "Brock Mearian":"https://avatars.slack-edge.com/2025-11-25/9979736146679_26b0b4616e247bc02d3a_original.jpg",
   "Ethan Sherman":"https://avatars.slack-edge.com/2026-05-20/11174283332101_835b7fd1db6ae33afbb9_original.png",
   "Hayden Love":"https://avatars.slack-edge.com/2026-07-20/11625790752499_54cb8ec7f9ae1bc7e838_original.jpg",
-  "Ike Rutter":"https://secure.gravatar.com/avatar/0da1a4498669ba322ffab8eabb6c6082.jpg?s=512&d=https%3A%2F%2Fa.slack-edge.com%2Fdf10d%2Fimg%2Favatars%2Fava_0008-512.png",
+  "Ike Rutter":"https://avatars.slack-edge.com/2024-09-10/7701553218582_c143611ac8c2bb64c33a_original.jpg",
+  "Shirae Durfey":"https://avatars.slack-edge.com/2026-01-07/10265710870721_4c81bdbfb928492d7445_original.png",
   "Isaac Jackman":"https://avatars.slack-edge.com/2024-10-28/7940789665542_853473b307d2e2d407d5_original.png",
   "Jackson O'Hara":"https://avatars.slack-edge.com/2025-11-27/10005734236853_799c207b8b340837efa1_original.png",
   "Kaylee Bott":"https://avatars.slack-edge.com/2023-11-08/6190466326672_5a180fedcdff8c88c199_original.png",
@@ -436,7 +441,7 @@ export default function Home() {
     </div>
   );
   const renderLeaderboard=()=>(
-    <aside className="leaderboard-panel"><ol className="leaderboard-list">{leaderboardRest.length?leaderboardRest.map(entry=><li key={entry.repName} className="leaderboard-row"><span className="leaderboard-rank">{entry.rank}</span>{renderFace(entry.repName,PROFILE_PHOTOS,"leaderboard-avatar")}<div className="leaderboard-tab-body"><strong className="leaderboard-name">{entry.repName}</strong><div className="leaderboard-metrics"><span className="leaderboard-count">{entry.count} / {entry.quota}</span><em className="leaderboard-pct">{entry.pct}%</em><div className="leaderboard-bar quota-bar" aria-hidden="true"><i style={{width:`${quotaBarFill(entry.pct)}%`}}/></div></div></div></li>):<li className="leaderboard-empty">{leaderboard.length>3?"Everyone else is still at zero.":"Waiting for monthly counts from HubSpot…"}</li>}</ol></aside>
+    <aside className="leaderboard-panel"><ol className="leaderboard-list">{leaderboardRest.length?leaderboardRest.map(entry=><li key={entry.repName} className="leaderboard-row"><span className="leaderboard-rank">{entry.rank}</span>{renderFace(entry.repName,PROFILE_PHOTOS,"leaderboard-avatar")}<strong className="leaderboard-name">{entry.repName}</strong><span className="leaderboard-count">{entry.count} / {entry.quota}</span><em className="leaderboard-pct">{entry.pct}%</em><div className="leaderboard-bar quota-bar" aria-hidden="true"><i style={{width:`${quotaBarFill(entry.pct)}%`}}/></div></li>):<li className="leaderboard-empty">{leaderboard.length>3?"Everyone else is still at zero.":"Waiting for monthly counts from HubSpot…"}</li>}</ol></aside>
   );
   const renderPodiumSlot=(entry:LeaderboardEntry,position:1|2|3)=>(
     <div key={entry.repName} className={`podium-slot place-${position}`}>{renderFace(entry.repName,PROFILE_PHOTOS,`podium-face place-${position}`)}<div className="podium-copy"><strong>{medalForRank(entry.rank)?<><span className="podium-medal podium-medal-inline" aria-hidden="true">{medalForRank(entry.rank)}</span>{entry.repName}</>:entry.repName}</strong><div className="podium-stats"><span className="podium-stat-count">{entry.count} / {entry.quota}</span><em className="podium-stat-pct">{entry.pct}%</em><div className="podium-stat-bar quota-bar" aria-hidden="true"><i style={{width:`${quotaBarFill(entry.pct)}%`}}/></div></div></div></div>
