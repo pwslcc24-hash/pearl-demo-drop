@@ -36,6 +36,10 @@ function json(data: unknown, status = 200) {
   return Response.json(data, { status, headers: { ...cors, "Cache-Control": "no-store" } });
 }
 
+// Kept across requests within the same worker isolate so a transient read
+// failure serves the last good snapshot instead of blanking the board.
+let lastGoodPayload: Record<string, unknown> | null = null;
+
 async function ready() {
   const { env } = await import("cloudflare:workers");
   const db = env.DB;
@@ -73,9 +77,11 @@ export async function GET() {
         ? { ...event, aeName: "Paul Bills" }
         : event
     );
-    return json({ events, monthlyCounts: totals.results ?? [], month: monthKey, syncedAt: syncMeta?.syncedAt ?? null, source: liveTotals.results?.length ? "hubspot-sync" : "event-fallback" });
+    const payload = { events, monthlyCounts: totals.results ?? [], month: monthKey, syncedAt: syncMeta?.syncedAt ?? null, source: liveTotals.results?.length ? "hubspot-sync" : "event-fallback" };
+    lastGoodPayload = payload;
+    return json(payload);
   } catch {
-    return json({ events: [], status: "initializing" });
+    return json(lastGoodPayload ?? { events: [], status: "initializing" });
   }
 }
 
@@ -120,8 +126,11 @@ export async function POST(request: Request) {
       const month = String(body.month ?? monthContext().monthKey);
       const rows = body.monthlyCounts.slice(0,200).map(item=>item as Record<string,unknown>).filter(item=>String(item.repName??"").trim());
       const db = await ready();
-      await db.prepare("DELETE FROM demo_events WHERE id LIKE ?").bind(`monthly-count:${month}:%`).run();
-      if(rows.length) await db.batch(rows.map(item=>{const rep=String(item.repName).trim();return db.prepare("INSERT INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, '', ?, '', ?, '')").bind(`monthly-count:${month}:${rep}`,rep,`MONTHLY_COUNT:${Math.max(0,Number(item.count)||0)}`,new Date().toISOString())}));
+      const deleteStmt = db.prepare("DELETE FROM demo_events WHERE id LIKE ?").bind(`monthly-count:${month}:%`);
+      const insertStmts = rows.map(item=>{const rep=String(item.repName).trim();return db.prepare("INSERT INTO demo_events (id, rep_name, company, product, song_id, created_at, ae_name) VALUES (?, ?, '', ?, '', ?, '')").bind(`monthly-count:${month}:${rep}`,rep,`MONTHLY_COUNT:${Math.max(0,Number(item.count)||0)}`,new Date().toISOString())});
+      // Delete and re-insert in one batch so reads never see the table with
+      // this month's rows removed but not yet replaced.
+      await db.batch([deleteStmt, ...insertStmts]);
       return json({ok:true,month,count:rows.length});
     }
     const repName = String(body.repName ?? body.rep_name ?? body.owner_name ?? "").trim();
