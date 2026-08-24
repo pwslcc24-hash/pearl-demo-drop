@@ -63,7 +63,7 @@ NAME_OVERRIDES = {
     "87817193": "Chad Tippets", "89053885": "Justin Jolley", "89053886": "Seth Wilkins",
     "89053889": "Peyton Anderson", "92610690": "Dallin McAllister", "92610691": "Marcus Smith Jr.",
     "95965275": "Hayden Love", "1094276884": "Cy Evans", "1437916112": "Paul Bills",
-    "1459543271": "Branson Lewis", "1688013106": "Ike Rutter", "503938905": "Nika Aguba",
+    "1459543271": "Branson Lewis", "1688013106": "Ike Rutter", "503938905": "Jace Rogers",
     "715298350": "Ethan Sherman", "79190747": "Matthew Larsen", "596306513": "Kaylee Bott",
     "2114106112": "Isaac Jackman", "650013581": "Bryson Thomas", "85078959": "Harrison Sanford",
     "2051237658": "Lindsey Simser", "77591895": "Sarah Parker", "85780304": "Kayne Bosma",
