@@ -1,4 +1,13 @@
 """Watch HubSpot for new completed demos and sync live monthly counts to Pearl Demo Drop."""
+
+# DEPLOYMENT NOTE
+# The persistent production process does NOT run from this Sites repository.
+# Railway project "zonal-celebration", service "demo-watcher", deploys the live
+# watcher from pwslcc24-hash/customer-data-pull/demo_watch.py using
+# /Dockerfile.demo-watch. Changes here must be copied to that runtime source and
+# its Railway deployment must become Active before they affect live polling.
+# HubSpot's demo_complete is date-only and stored at UTC midnight, so the first
+# day of each month must be queried from UTC midnight (never Denver midnight).
 import asyncio
 import json
 import os
