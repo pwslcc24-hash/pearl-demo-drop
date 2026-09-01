@@ -19,17 +19,25 @@ const cors = {
 
 const DISPLAY_TIMEZONE = "America/Denver";
 
-function monthContext() {
-  const localDate = new Intl.DateTimeFormat("en-CA", {
+function monthKeyOf(date: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: DISPLAY_TIMEZONE,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(new Date());
-  const monthKey = localDate.slice(0, 7);
+  }).format(date).slice(0, 7);
+}
+
+function monthContext() {
+  const monthKey = monthKeyOf(new Date());
   const [year, month] = monthKey.split("-").map(Number);
-  const monthStartIso = new Date(Date.UTC(year, month - 1, 1)).toISOString();
-  return { monthKey, monthStartIso };
+  // Wide, UTC-only prefilter for the DB query — one full day of slack on
+  // each side so no America/Denver offset (DST or not) can exclude a row.
+  // The exact cutoff is enforced afterwards by comparing monthKeyOf() in
+  // the display timezone, so this stays correct across every month/year
+  // boundary without hardcoding an offset.
+  const prefilterFromIso = new Date(Date.UTC(year, month - 1, 1) - 86400000).toISOString();
+  return { monthKey, prefilterFromIso };
 }
 
 function json(data: unknown, status = 200) {
@@ -68,10 +76,24 @@ export async function GET() {
     const db = await ready();
     const result = await db.prepare(`SELECT id, rep_name AS repName, company, product, song_id AS songId, created_at AS createdAt, ae_name AS aeName
       FROM demo_events WHERE id NOT LIKE 'monthly-count:%' AND id NOT LIKE 'replay-%' ORDER BY rowid DESC LIMIT 10`).all() as D1Result<DemoEvent>;
-    const { monthKey, monthStartIso } = monthContext();
+    const { monthKey, prefilterFromIso } = monthContext();
     const liveTotals = await db.prepare(`SELECT rep_name AS repName, CAST(SUBSTR(product, 15) AS INTEGER) AS count FROM demo_events WHERE id LIKE ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' ORDER BY count DESC`).bind(`monthly-count:${monthKey}:%`).all() as D1Result<{repName:string;count:number}>;
     const syncMeta = await db.prepare(`SELECT MAX(created_at) AS syncedAt FROM demo_events WHERE id LIKE ?`).bind(`monthly-count:${monthKey}:%`).first() as { syncedAt?: string } | null;
-    const totals = liveTotals.results?.length ? liveTotals : await db.prepare(`SELECT rep_name AS repName, COUNT(*) AS count FROM demo_events WHERE created_at >= ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' AND id NOT LIKE 'monthly-count:%' GROUP BY rep_name ORDER BY count DESC`).bind(monthStartIso).all() as D1Result<{repName:string;count:number}>;
+    let totals: D1Result<{repName:string;count:number}> = liveTotals;
+    if (!liveTotals.results?.length) {
+      // Prefilter wide in UTC (DB has no timezone awareness), then count
+      // only the rows whose America/Denver calendar month actually matches
+      // — this is the check that has to hold at every month/year boundary.
+      const candidates = await db.prepare(`SELECT rep_name AS repName, created_at AS createdAt FROM demo_events WHERE created_at >= ? AND id NOT LIKE 'test-%' AND id NOT LIKE 'replay-%' AND id NOT LIKE 'monthly-count:%'`)
+        .bind(prefilterFromIso).all() as D1Result<{repName:string;createdAt:string}>;
+      const counts = new Map<string, number>();
+      for (const row of candidates.results ?? []) {
+        const date = new Date(row.createdAt);
+        if (Number.isNaN(date.getTime()) || monthKeyOf(date) !== monthKey) continue;
+        counts.set(row.repName, (counts.get(row.repName) ?? 0) + 1);
+      }
+      totals = { results: [...counts.entries()].map(([repName, count]) => ({ repName, count })).sort((a, b) => b.count - a.count) };
+    }
     const events = (result.results ?? []).map(event =>
       event.id === "63436217740" && !event.aeName
         ? { ...event, aeName: "Paul Bills" }

@@ -41,13 +41,8 @@ const SDR_TEAM_BY_REP: Record<string, SdrTeam> = {
   "Carson Heber": "outbound",
   "Josh Cheney": "outbound",
   "Spencer Gowan": "outbound",
-  "Aldo Lopez": "outbound",
-  "Devin Stika": "outbound",
   "Dylan Hamilton": "outbound",
   "Easton Christiansen": "outbound",
-  "Nick Crawford": "outbound",
-  "Jack Gardner": "outbound",
-  "Jeremy Thompson": "outbound",
   "Preston Francis": "outbound",
   "Ava Geertsen": "outbound",
   "Payton Clayson": "outbound",
@@ -55,7 +50,7 @@ const SDR_TEAM_BY_REP: Record<string, SdrTeam> = {
 };
 
 const SDR_QUOTA_OVERRIDES: Record<string, number> = {
-  "Kana Makuakane": 45,
+  "Kana Makuakane": 31,
   "Preston Francis": 6,
   "Carson Heber": 6,
   "Lexee Cheney": 13,
@@ -65,13 +60,13 @@ const SDR_QUOTA_OVERRIDES: Record<string, number> = {
   "Spencer Anderson": 16,
 };
 
-const LEADERBOARD_EXCLUDED = new Set(["Shaline Vogler"]);
+const LEADERBOARD_EXCLUDED = new Set(["Shaline Vogler", "Devin Stika", "Jack Gardner", "Jeremy Thompson", "Nick Crawford", "Aldo Lopez"]);
 
 const SDR_NAMES = [
-  "Aldo Lopez","Aaron Hill","Audrey Linder","Ava Geertsen","Ben PoVey","Carson Heber","Cason Clarke",
-  "Christian Hawkins","Devin Stika","Dylan Hamilton","Easton Christiansen","Jace Muir","Jack Gardner",
-  "Jeremy Thompson","Josh Cheney","Kaden Backlund","Kana Makuakane","Kenzie Sacks","Kody Davis","Kyla Probst",
-  "Lexee Cheney","Logan Baker","Nick Crawford","Payton Clayson","Porter Whitworth","Preston Francis",
+  "Aaron Hill","Audrey Linder","Ava Geertsen","Ben PoVey","Carson Heber","Cason Clarke",
+  "Christian Hawkins","Dylan Hamilton","Easton Christiansen","Jace Muir",
+  "Josh Cheney","Kaden Backlund","Kana Makuakane","Kenzie Sacks","Kody Davis","Kyla Probst",
+  "Lexee Cheney","Logan Baker","Payton Clayson","Porter Whitworth","Preston Francis",
   "Spencer Anderson","Spencer Gowan","Trey Falkner","Ty Armstrong",
 ].sort();
 

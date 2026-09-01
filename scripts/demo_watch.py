@@ -86,8 +86,15 @@ def current_month_label():
 
 
 def month_start_local():
+    # demo_complete is a HubSpot date-only property: it's always stored as
+    # UTC midnight of the calendar day picked, regardless of portal timezone.
+    # Anchoring this bound at America/Denver midnight (~6-7h after UTC
+    # midnight) silently excludes every deal dated on the 1st of the month
+    # from the search filter for the rest of that month. Use Denver only to
+    # decide which (year, month) we're in, then anchor at UTC midnight to
+    # match how HubSpot actually stores the value.
     now = datetime.now(DISPLAY_TZ)
-    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return datetime(now.year, now.month, 1, tzinfo=timezone.utc)
 
 
 def post_json(url, payload):
